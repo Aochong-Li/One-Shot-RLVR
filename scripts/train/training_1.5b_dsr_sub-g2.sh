@@ -10,9 +10,6 @@ N_GPUS=4
 EXPERIMENT_NAME="Qwen2.5-Math-1.5B-dsr_sub-g2"
 TOTAL_EPOCHS=400 # 400 x 9 = 3600 steps; 3600 / 
 
-max_num_batched_tokens_per_gpu=40960
-max_num_seqs_per_gpu=4096
-
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
  data.train_files=data/train/one_shot_rlvr/dsr_sub.parquet \
@@ -41,8 +38,6 @@ python3 -m verl.trainer.main_ppo \
  +actor_rollout_ref.rollout.val_temperature=0.6 \
  actor_rollout_ref.rollout.gpu_memory_utilization=0.7 \
  actor_rollout_ref.rollout.n=8 \
- actor_rollout_ref.rollout.max_num_batched_tokens=$(($max_num_batched_tokens_per_gpu * $N_GPUS)) \
- actor_rollout_ref.rollout.max_num_seqs=$(($max_num_seqs_per_gpu * $N_GPUS)) \
  +actor_rollout_ref.rollout.n_val=1 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
  algorithm.kl_ctrl.kl_coef=0.001 \
