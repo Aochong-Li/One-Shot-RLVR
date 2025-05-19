@@ -48,6 +48,7 @@ import wandb
 import re
 import matplotlib.pyplot as plt
 import random
+from tqdm import tqdm
 
 
 WorkerType = Type[Worker]
@@ -1028,7 +1029,11 @@ class RayPPOTrainer(object):
             self._save_checkpoint()
 
         # we start from step 1
+        # HACK: Record total tokens
         self.global_steps += 1
+        self.global_total_tokens = 0
+        total_training_steps = self.config.trainer.total_epochs * len(self.train_dataloader)
+        global_step_tqdm = tqdm(range(total_training_steps), desc="Global Training Steps", unit="step", total=total_training_steps, leave=True)
 
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
@@ -1067,6 +1072,11 @@ class RayPPOTrainer(object):
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(gen_batch_output)
 
+                    # HACK: Record total tokens
+                    self.global_total_tokens += batch.batch['attention_mask'].sum().item()
+                    metrics.update({'token_budget/total_token_budget': self.global_total_tokens})
+                    # End of HACK
+
                     # balance the number of valid tokens on each dp rank.
                     # Note that this breaks the order of data inside the batch.
                     # Please take care when you implement group based adv computation such as GRPO and rloo
@@ -1100,11 +1110,35 @@ class RayPPOTrainer(object):
                             # we first compute reward model score
                             reward_tensor = self.rm_wg.compute_rm_score(batch)
                             batch = batch.union(reward_tensor)
-                            
+
                         # we combine with rule-based rm
                         reward_tensor, score_record = self.reward_fn(batch)
                         score_records.extend(score_record)
                         batch.batch['token_level_scores'] = reward_tensor
+                        
+                        # HACK: Record # solve none and solve all and avg solve rate
+                        uids = batch.non_tensor_batch['uid']
+                        unique_uids = np.unique(uids)
+                        valid_mask = torch.ones(len(uids), dtype=torch.bool)
+                        solve_none = 0
+                        solve_all = 0
+                        for uid in unique_uids:
+                            uid_mask = uids == uid
+                            uid_rewards = reward_tensor[uid_mask].sum(-1)  # Sum rewards for each sequence
+                            
+                            # Check if all rewards are 0 or all are 1 for this uid
+                            if (uid_rewards == 0).all():
+                                valid_mask[uid_mask] = False
+                                solve_none += 1
+                            elif (uid_rewards == 1).all():
+                                valid_mask[uid_mask] = False
+                                solve_all += 1
+                        
+                        # Log to metrics
+                        metrics['batch/solve_none'] = solve_none
+                        metrics['batch/solve_all'] = solve_all
+                        metrics['batch/avg_solve_rate'] = batch[valid_mask].batch['token_level_scores'].sum(-1).mean().item()
+                        # End of HACK
 
                         # compute rewards. apply_kl_penalty if available
                         if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):
@@ -1166,7 +1200,7 @@ class RayPPOTrainer(object):
                 logger.log(data=metrics, step=self.global_steps)
 
                 self.global_steps += 1
-
+                global_step_tqdm.update(1)
                 if self.global_steps >= self.total_training_steps:
 
                     # perform validation after training
@@ -1179,3 +1213,4 @@ class RayPPOTrainer(object):
                         with _timer('save_checkpoint', timing_raw):
                             self._save_checkpoint()
                     return
+  

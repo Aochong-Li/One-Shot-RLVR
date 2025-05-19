@@ -2,9 +2,12 @@
 set -x
 
 # CHECKPOINTS_DIR=... # TODO: change to your own path
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export VLLM_ATTENTION_BACKEND=XFORMERS
+export CHECKPOINTS_DIR="./outputs/${EXPERIMENT_NAME}"
+
+N_GPUS=8
 EXPERIMENT_NAME="Qwen2.5-Math-1.5B-dsr_sub"
-OUTPUT_DIR="./outputs/${EXPERIMENT_NAME}"
 TOTAL_EPOCHS=400 # 400 x 9 = 3600 steps; 3600 / 
 
 python3 -m verl.trainer.main_ppo \
@@ -21,7 +24,7 @@ python3 -m verl.trainer.main_ppo \
  actor_rollout_ref.model.use_remove_padding=True \
  actor_rollout_ref.actor.ppo_mini_batch_size=128 \
  actor_rollout_ref.actor.use_dynamic_bsz=True \
- actor_rollout_ref.actor.ppo_max_token_len_per_gpu=24000 \
+ actor_rollout_ref.actor.ppo_max_token_len_per_gpu=32768 \
  actor_rollout_ref.actor.use_kl_loss=True \
  actor_rollout_ref.actor.kl_loss_coef=0.001 \
  actor_rollout_ref.actor.kl_loss_type=low_var_kl \
@@ -44,7 +47,7 @@ python3 -m verl.trainer.main_ppo \
  trainer.experiment_name=$EXPERIMENT_NAME \
  trainer.checkpoints_dir=$CHECKPOINTS_DIR \
  +trainer.val_before_train=True \
- trainer.n_gpus_per_node=8 \
+ trainer.n_gpus_per_node=$N_GPUS \
  trainer.nnodes=1 \
  trainer.save_freq=250 \
  trainer.test_freq=250 \
