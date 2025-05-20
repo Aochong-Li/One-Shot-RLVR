@@ -42,7 +42,6 @@ python3 -m verl.trainer.main_ppo \
  actor_rollout_ref.rollout.n=8 \
  +actor_rollout_ref.rollout.n_val=1 \
  actor_rollout_ref.rollout.max_num_batched_tokens=16384 \
- actor_rollout_ref.rollout.max_num_seqs=2048 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
  algorithm.kl_ctrl.kl_coef=0.001 \
  trainer.critic_warmup=0 \
