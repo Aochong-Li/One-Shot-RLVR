@@ -8,7 +8,7 @@ export CHECKPOINTS_DIR="./outputs/${EXPERIMENT_NAME}"
 
 N_GPUS=8
 EXPERIMENT_NAME="Qwen2.5-Math-1.5B-dsr_sub"
-TOTAL_EPOCHS=400 # 400 x 9 = 3600 steps; 3600 / 
+TOTAL_EPOCHS=400 # 400 x 9 = 3600 steps; 3600 / 360 = 10 epochs
 
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
@@ -49,7 +49,7 @@ python3 -m verl.trainer.main_ppo \
  +trainer.val_before_train=True \
  trainer.n_gpus_per_node=$N_GPUS \
  trainer.nnodes=1 \
- trainer.save_freq=250 \
- trainer.test_freq=250 \
+ trainer.save_freq=360 \
+ trainer.test_freq=360 \
  trainer.default_hdfs_dir=null \
  trainer.total_epochs=$TOTAL_EPOCHS 2>&1 | tee verl_demo.log

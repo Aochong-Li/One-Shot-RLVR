@@ -1213,4 +1213,3 @@ class RayPPOTrainer(object):
                         with _timer('save_checkpoint', timing_raw):
                             self._save_checkpoint()
                     return
-  

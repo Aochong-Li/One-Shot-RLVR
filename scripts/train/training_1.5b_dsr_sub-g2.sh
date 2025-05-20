@@ -15,7 +15,7 @@ python3 -m verl.trainer.main_ppo \
  data.train_files=data/train/one_shot_rlvr/dsr_sub.parquet \
  data.val_files=data/test/math500.parquet \
  data.train_batch_size=128 \
- data.val_batch_size=530 \
+ data.val_batch_size=530 d\
  data.max_prompt_length=1024 \
  data.max_response_length=3072 \
  reward_model.reward_manager='naive' \
