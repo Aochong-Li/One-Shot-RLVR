@@ -32,7 +32,7 @@ def make_map_fn(split: str):
                 "ground_truth": answer
             },
             "extra_info": {
-                'split': f"deepmath-4096-{split}",
+                'split': split,
                 'index': idx
             }
         }
@@ -42,7 +42,7 @@ def make_map_fn(split: str):
 if __name__ == '__main__':
     """
     Example usage:
-    python data/format_parquet/deepmath_dataset.py --local_dir "data/train/deepmath_4096"
+    python data/format_parquet/deepmath_dataset.py --local_dir "./data/train/deepmath_4096"
     """
     parser = argparse.ArgumentParser(description='Process datasets for DeepScaler training')
     parser.add_argument('--local_dir', required=True, help='Local directory to save processed datasets')
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     process_fn = make_map_fn('train')
 
     for idx, example in enumerate(train_dataset):
-        processed_example = process_fn(example, idx, "deepscaler")
+        processed_example = process_fn(example, idx, "deepmath_4096")
         if processed_example is not None:
             train_data.append(processed_example)
 
