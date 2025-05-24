@@ -5,7 +5,13 @@ import argparse
 
 # Push model checkpoints to huggingface
 def push_model_checkpoints (experiment_name: str):
-    local_checkpoint_dir = f"./outputs/verl_rlvr/{experiment_name}"
+    if os.path.exists(f"./outputs/verl_rlvr/{experiment_name}"):
+        local_checkpoint_dir = f"./outputs/verl_rlvr/{experiment_name}"
+    elif os.path.exists(f"./outputs/{experiment_name}/verl_rlvr/{experiment_name}"):
+        local_checkpoint_dir = f"./outputs/{experiment_name}/verl_rlvr/{experiment_name}"
+    else:
+        raise ValueError(f"Experiment {experiment_name} not found")
+
     global_steps = [step for step in os.listdir(local_checkpoint_dir) if "global_step" in step]
 
     for global_step in global_steps:

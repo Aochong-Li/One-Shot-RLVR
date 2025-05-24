@@ -6,7 +6,7 @@ set -x
 N_GPUS=8
 ROLLOUT_N=6
 TENSOR_MODEL_PARALLEL_SIZE=1
-EXPERIMENT_NAME="Qwen2.5-Math-1.5B-deepmath-4096-rollout-6"
+EXPERIMENT_NAME="Qwen2.5-Math-1.5B-deepmath-4096-rollout-${ROLLOUT_N}"
 TOTAL_EPOCHS=5 # 56445 * 5 / 256 = 1100 steps
 SAVE_STEPS=200 # 1100 / 200 = 6 checkpoints
 EVAL_STEPS=50 # 1100 / 50 = 22 times
