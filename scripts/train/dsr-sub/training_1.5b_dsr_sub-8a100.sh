@@ -4,7 +4,7 @@ set -x
 # CHECKPOINTS_DIR=... # TODO: change to your own path
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export VLLM_ATTENTION_BACKEND=XFORMERS
-export CHECKPOINTS_DIR="./outputs/${EXPERIMENT_NAME}"
+export CHECKPOINTS_DIR="./outputs"
 
 N_GPUS=8
 EXPERIMENT_NAME="Qwen2.5-Math-1.5B-dsr_sub"
@@ -39,9 +39,9 @@ python3 -m verl.trainer.main_ppo \
  actor_rollout_ref.rollout.temperature=0.6 \
  +actor_rollout_ref.rollout.val_temperature=0.6 \
  actor_rollout_ref.rollout.gpu_memory_utilization=0.85 \
+ actor_rollout_ref.rollout.max_num_batched_tokens=16384 \
  actor_rollout_ref.rollout.n=8 \
  +actor_rollout_ref.rollout.n_val=1 \
- actor_rollout_ref.rollout.max_num_batched_tokens=16384 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
  algorithm.kl_ctrl.kl_coef=0.001 \
  trainer.critic_warmup=0 \

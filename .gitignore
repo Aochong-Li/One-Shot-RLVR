@@ -121,4 +121,7 @@ tests/e2e/toy_examples/deepspeed/synchronous/output.txt
 *.lock
 
 # large datasets 
-./data/train/deepmath_4096
+data/train/deepmath_4096/
+
+# model outputs
+outputs/

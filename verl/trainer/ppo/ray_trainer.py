@@ -39,6 +39,7 @@ from verl.trainer.ppo import core_algos
 from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seqlen_unbalance
 from verl.utils.checkpoint.checkpoint_manager import find_latest_ckpt_path
 from verl.utils.dataset.rl_dataset import RLHFDataset, collate_fn
+from verl.utils.checkpoint.push import push_model_to_hf
 
 import tempfile
 from filelock import FileLock
@@ -904,7 +905,28 @@ class RayPPOTrainer(object):
                                                            'latest_checkpointed_iteration.txt')
         with open(local_latest_checkpointed_iteration, 'w') as f:
             f.write(str(self.global_steps))
+        
+        #HACK: push model checkpoints to huggingface
+        if self.config.trainer.push_to_hub:
+            local_huggingface_checkpoint = os.path.join(local_global_step_folder, "actor")
 
+            # remove optimizer state
+            try:
+                import glob
+                for filepath in glob.glob(os.path.join(local_huggingface_checkpoint, "*.pt")):
+                    print(f"Removing optimizer state: {filepath}")
+                    os.remove(filepath)
+            except Exception as e:
+                print(f"Error removing optimizer state: {e}")
+            
+            try:
+                model_name = f"{self.config.trainer.experiment_name}-global-step-{self.global_steps}"
+                username = self.config.trainer.username
+                print(f"Pushing model checkpoint to huggingface: {model_name}")
+                push_model_to_hf(model_name, local_huggingface_checkpoint, username)
+            except Exception as e:
+                print(f"Error pushing model checkpoint to huggingface: {e}")
+    
     def _load_checkpoint(self):
         if self.config.trainer.resume_mode == 'disable':
             # On fresh start, set the initial dataloader based on configuration
@@ -1012,7 +1034,8 @@ class RayPPOTrainer(object):
         # load checkpoint before doing anything
         self._load_checkpoint()
 
-        self._save_checkpoint()
+        # TODO: REMOVE THIS         
+        # self._save_checkpoint()
 
         # perform validation before training
         # currently, we only support validation using the reward_function.
@@ -1022,7 +1045,7 @@ class RayPPOTrainer(object):
             logger.log(data=val_metrics, step=self.global_steps)
             if self.config.trainer.get('val_only', False):
                 return
-
+        
         # save initial checkpoint
         with _timer('save_initial_checkpoint', {}):
             print(f"Saving initial checkpoint at step {self.global_steps}")

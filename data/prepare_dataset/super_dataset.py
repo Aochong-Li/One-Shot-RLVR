@@ -138,7 +138,7 @@ def process_deepmath(example, tokenizer):
         "dataset": "DeepMath-103k",
     }
 
-def process_deepmath_dataset(output_dir:str, max_problem_token_len:int = 1024, max_generated_token_len:int = 3072, model_name = "Qwen/Qwen2.5-Math-1.5B"):
+def process_deepmath_dataset(output_dir:str, max_problem_token_len:int = 200, max_generated_token_len:int = 3840, model_name = "Qwen/Qwen2.5-Math-1.5B"):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     deepmath_dataset = load_dataset("zwhe99/DeepMath-103K")['train']
     deepmath_dataset = deepmath_dataset.map(lambda x: process_deepmath(x, tokenizer), num_proc=4, remove_columns = ["r1_solution_1", "r1_solution_2", "r1_solution_3", "final_answer", "question"])
@@ -148,5 +148,5 @@ def process_deepmath_dataset(output_dir:str, max_problem_token_len:int = 1024, m
     deepmath_dataset.save_to_disk(output_dir)
 
 if __name__ == "__main__":
-    dataset_dir = "/share/goyal/lio/reasoning/data/superrl_4096"
-    process_super_rl_dataset(output_dir=dataset_dir, model_name="Qwen/Qwen2.5-Math-1.5B")
+    dataset_dir = "/share/goyal/lio/reasoning/data/deepmath_4096"
+    process_deepmath_dataset(output_dir=dataset_dir, model_name="Qwen/Qwen2.5-Math-1.5B")

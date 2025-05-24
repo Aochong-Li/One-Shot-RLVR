@@ -174,3 +174,7 @@ trainer:
   del_local_ckpt_after_load: False
   checkpoints_dir: checkpoints
   default_local_dir: ${trainer.checkpoints_dir}/${trainer.project_name}/${trainer.experiment_name}
+  # pushing model checkpoints to huggingface
+  push_to_hub: False
+  username: null
+  model_name: ${trainer.experiment_name}
