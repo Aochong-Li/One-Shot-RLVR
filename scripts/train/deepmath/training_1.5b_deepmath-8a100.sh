@@ -2,12 +2,12 @@
 set -x
 
 # CHECKPOINTS_DIR=... # TODO: change to your own path
-# Dataset Size: 56445
+# Dataset Size: 46600
 N_GPUS=8
-ROLLOUT_N=6
+ROLLOUT_N=8
 TENSOR_MODEL_PARALLEL_SIZE=1
 EXPERIMENT_NAME="Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-${ROLLOUT_N}"
-TOTAL_EPOCHS=5 # 46000 * 5 / 128 = 1750 steps
+TOTAL_EPOCHS=5 # 46600 * 5 / 128 = 1750 steps
 SAVE_STEPS=200 # 1750 / 200 = 8 checkpoints
 EVAL_STEPS=50 # 1750 / 50 = 35 times
 

@@ -10,7 +10,7 @@ import os
 from typing import Dict, List, Optional, Any
 
 import pandas as pd
-from verl.utils.hdfs_io import copy, makedirs
+# from verl.utils.hdfs_io import copy, makedirs
 from datasets import load_dataset
 
 def make_map_fn(split: str):
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     local_dir = args.local_dir
     
     # Make local directory if it doesn't exist
-    makedirs(local_dir, exist_ok=True)
+    os.makedirs(local_dir, exist_ok=True)
 
     train_dataset = load_dataset("aochongoliverli/deepmath-4096-hard-rl")["train"]
     train_data: List[Dict[str, Any]] = []
