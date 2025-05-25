@@ -4,10 +4,10 @@ import os
 import sys
 import json
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from transformers import AutoTokenizer
 from verl.utils.reward_score.math import remove_boxed, last_boxed_only_string
 import pdb
+from tqdm import tqdm
 
 """
     Process OpenThoughts-114k-math dataset
@@ -94,7 +94,13 @@ def deduplicate_combine_datasets(dataset1, dataset2):
     
     return concatenate_datasets([dataset1, filtered_dataset2])
 
-def process_super_rl_dataset(output_dir:str, max_problem_token_len:int = 1024, max_generated_token_len:int = 3072, model_name = "Qwen/Qwen2.5-Math-1.5B"):
+def process_super_rl_dataset(max_problem_token_len:int = 1024,
+                             max_generated_token_len:int = 3072,
+                             model_name = "Qwen/Qwen2.5-Math-1.5B",
+                             local_output_dir:str = None,
+                             username:str = "aochongoliverli",
+                             dataset_name:str = None,
+                             ):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     # Load OpenThoughts-114k-math dataset, OpenR1 dataset
@@ -111,12 +117,17 @@ def process_super_rl_dataset(output_dir:str, max_problem_token_len:int = 1024, m
                            and x['problem_token_count'] <= max_problem_token_len)
 
     super_rl = deduplicate_combine_datasets(openr1, openthought)    
-    super_rl.save_to_disk(output_dir)
+    if local_output_dir is not None:
+        super_rl.save_to_disk(local_output_dir)
+    if dataset_name is not None:
+        repo_id = f"{username}/{dataset_name}"
+        super_rl.push_to_hub(repo_id, private=False)
 
 """
 Process DeepMath dataset
 """
-def process_deepmath(example, tokenizer):
+
+def process_deepmath_rl(example, tokenizer):
     problem = example.pop("question")
     answer = example.pop("final_answer")
     generations = [example.pop("r1_solution_1"), example.pop("r1_solution_2"), example.pop("r1_solution_3")]
@@ -135,18 +146,95 @@ def process_deepmath(example, tokenizer):
         "generation": generation,
         "generated_token_count": generated_token_count,
         "problem_token_count": problem_token_count,
-        "dataset": "DeepMath-103k",
+        "dataset": "DeepMath-4096",
     }
 
-def process_deepmath_dataset(output_dir:str, max_problem_token_len:int = 200, max_generated_token_len:int = 3840, model_name = "Qwen/Qwen2.5-Math-1.5B"):
+def process_deepmath_sft(batch, tokenizer, min_difficulty_level):
+    problems, answers, difficulties, generations, problem_token_counts, generated_token_counts = [], [], [], [], [], []
+    # To get a proper progress bar, use tqdm on a range and index into the batch arrays.
+    n = len(batch['question'])
+    for i in tqdm(range(n), desc="Processing DeepMath dataset", leave=True):
+        question = batch['question'][i]
+        answer = batch['final_answer'][i]
+        difficulty = batch['difficulty'][i]
+        r1_solution_1 = batch['r1_solution_1'][i]
+        r1_solution_2 = batch['r1_solution_2'][i]
+        r1_solution_3 = batch['r1_solution_3'][i]
+
+        if difficulty >= min_difficulty_level:
+            problems.extend([question] * 3)
+            answers.extend([answer] * 3)
+            difficulties.extend([difficulty] * 3)
+            generations.extend([r1_solution_1, r1_solution_2, r1_solution_3])
+
+            problem_token_counts.extend([len(tokenizer.encode(question))] * 3)
+            generated_token_counts.extend([
+                len(tokenizer.encode(r1_solution_1)),
+                len(tokenizer.encode(r1_solution_2)),
+                len(tokenizer.encode(r1_solution_3))
+            ])
+
+    return {
+        "problem": problems,
+        'answer': answers,
+        "difficulty": difficulties,
+        "generation": generations,
+        "problem_token_count": problem_token_counts,
+        "generated_token_count": generated_token_counts,
+        "dataset": ["DeepMath-4096"] * len(problems)
+    }
+
+def convert_to_conversation_format(example):
+    problem = example.pop("problem")
+    generation = example.pop("generation")
+    conversations = [
+        {"role": "user", "content": problem},
+        {"role": "assistant", "content": generation}
+    ]
+    return {
+        "conversations": conversations
+    }
+
+def process_deepmath_dataset(max_problem_token_len:int = 200,
+                              max_generated_token_len:int = 3840,
+                              model_name = "Qwen/Qwen2.5-Math-1.5B",
+                              local_output_dir:str = None,
+                              username:str = "aochongoliverli",
+                              dataset_name:str = None,
+                              min_difficulty_level: float = 0.0
+                              ):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     deepmath_dataset = load_dataset("zwhe99/DeepMath-103K")['train']
-    deepmath_dataset = deepmath_dataset.map(lambda x: process_deepmath(x, tokenizer), num_proc=4, remove_columns = ["r1_solution_1", "r1_solution_2", "r1_solution_3", "final_answer", "question"])
-    deepmath_dataset = deepmath_dataset.filter(lambda x: x['generated_token_count'] <= max_generated_token_len \
+    
+    # SFT dataset for Distillation
+    columns = ["question", "final_answer", "topic", "r1_solution_1", "r1_solution_2", "r1_solution_3"]
+    deepmath_sft_dataset = deepmath_dataset.map(lambda x: process_deepmath_sft(x, tokenizer, min_difficulty_level),
+                                                batched=True,
+                                                batch_size=len(deepmath_dataset),
+                                                num_proc=4,
+                                                remove_columns = columns)
+    
+    deepmath_sft_dataset = deepmath_sft_dataset.filter(lambda x: x['generated_token_count'] <= max_generated_token_len \
                                                 and x['problem_token_count'] <= max_problem_token_len)
+    # RL dataset for GRPO
+    deepmath_rl_dataset = deepmath_sft_dataset.select_columns(["problem", "answer", "difficulty", "problem_token_count", "dataset"])
+    deepmath_rl_dataset = pd.DataFrame(deepmath_rl_dataset).drop_duplicates(subset=['problem', 'answer'])
+    deepmath_rl_dataset = Dataset.from_pandas(deepmath_rl_dataset, preserve_index=False)
+    
+    # Convert SFT datasetto conversation format
+    deepmath_sft_dataset = deepmath_sft_dataset.map(convert_to_conversation_format,
+                                                    num_proc=4,
+                                                    remove_columns=["problem", "answer", "difficulty", "generation"]
+                                                    )
+    if local_output_dir is not None:
+        deepmath_rl_dataset.save_to_disk(os.path.join(local_output_dir, "rl"))
+        deepmath_sft_dataset.save_to_disk(os.path.join(local_output_dir, "sft"))
+    if dataset_name is not None:
+        repo_id_rl = f"{username}/{dataset_name}-rl"
+        repo_id_sft = f"{username}/{dataset_name}-sft"
 
-    deepmath_dataset.save_to_disk(output_dir)
+        deepmath_rl_dataset.push_to_hub(repo_id_rl, private=False)
+        deepmath_sft_dataset.push_to_hub(repo_id_sft, private=False)
 
 if __name__ == "__main__":
-    dataset_dir = "/share/goyal/lio/reasoning/data/deepmath_4096"
-    process_deepmath_dataset(output_dir=dataset_dir, model_name="Qwen/Qwen2.5-Math-1.5B")
+    process_deepmath_dataset(model_name="Qwen/Qwen2.5-Math-1.5B", dataset_name="deepmath-4096-hard", min_difficulty_level=5.0)

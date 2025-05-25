@@ -16,8 +16,8 @@ from datasets import load_dataset
 def make_map_fn(split: str):
     def process_fn(example: Dict[str, Any], idx: int, data_source: str) -> Optional[Dict[str, Any]]:
         question = example.pop('problem')
-        instruction = "Let's think step by step and output the final answer within \\boxed{}."
-        question = f"{question} {instruction}"
+        # instruction = "Let's think step by step and output the final answer within \\boxed{}."
+        # question = f"{question} {instruction}"
         answer = example.pop('answer')
 
         data = {
@@ -52,12 +52,12 @@ if __name__ == '__main__':
     # Make local directory if it doesn't exist
     makedirs(local_dir, exist_ok=True)
 
-    train_dataset = load_dataset("aochongoliverli/deepmath_4096")["train"]
+    train_dataset = load_dataset("aochongoliverli/deepmath-4096-hard-rl")["train"]
     train_data: List[Dict[str, Any]] = []
     process_fn = make_map_fn('train')
 
     for idx, example in enumerate(train_dataset):
-        processed_example = process_fn(example, idx, "deepmath_4096")
+        processed_example = process_fn(example, idx, "deepmath-4096-hard")
         if processed_example is not None:
             train_data.append(processed_example)
 

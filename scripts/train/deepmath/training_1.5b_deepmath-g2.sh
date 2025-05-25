@@ -4,10 +4,10 @@ set -x
 # CHECKPOINTS_DIR=... # TODO: change to your own path
 # Dataset Size: 56445
 N_GPUS=2
-EXPERIMENT_NAME="Qwen2.5-Math-1.5B-deepmath-g2-beta"
+EXPERIMENT_NAME="Qwen2.5-Math-1.5B-deepmath-hard-g2-beta"
 TOTAL_EPOCHS=3 # 56445 * 3 / 128 = 1300 steps
-SAVE_STEPS=10 
-EVAL_STEPS=10
+SAVE_STEPS=100
+EVAL_STEPS=50
 ROLLOUT_N=2
 
 export CUDA_VISIBLE_DEVICES=0,1
@@ -16,7 +16,7 @@ export CHECKPOINTS_DIR="./outputs"
 
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
- data.train_files=data/train/deepmath_4096/train.parquet \
+ data.train_files=data/train/deepmath_4096_hard/train.parquet \
  data.val_files=data/test/math500.parquet \
  data.train_batch_size=128 \
  data.val_batch_size=512 \
@@ -53,11 +53,14 @@ python3 -m verl.trainer.main_ppo \
  trainer.project_name='verl_rlvr'\
  trainer.experiment_name=$EXPERIMENT_NAME \
  trainer.checkpoints_dir=$CHECKPOINTS_DIR \
+ trainer.resume_mode='disable' \
  +trainer.val_before_train=True \
  trainer.n_gpus_per_node=$N_GPUS \
  trainer.nnodes=1 \
  trainer.save_freq=$SAVE_STEPS \
  trainer.test_freq=$EVAL_STEPS \
  trainer.total_epochs=$TOTAL_EPOCHS \
- trainer.push_to_hub=True \
- trainer.username=aochongoliverli 2>&1 | tee verl_demo.log
+ trainer.push_to_hub=False 2>&1 | tee verl_demo.log
+
+ ## Push Saved Checkpoints to Huggingface
+ python3 push_to_hf/experiments.py --project_name verl_rlvr --run_name $EXPERIMENT_NAME

@@ -906,8 +906,10 @@ class RayPPOTrainer(object):
         with open(local_latest_checkpointed_iteration, 'w') as f:
             f.write(str(self.global_steps))
         
-        #HACK: push model checkpoints to huggingface
+        # HACK: push model checkpoints to huggingface
         if self.config.trainer.push_to_hub:
+            raise NotImplementedError("push_to_hub is not implemented yet. Please push all model weights after the training is done.")
+            
             local_huggingface_checkpoint = os.path.join(local_global_step_folder, "actor")
 
             # remove optimizer state
@@ -1096,7 +1098,8 @@ class RayPPOTrainer(object):
                     batch = batch.union(gen_batch_output)
 
                     # HACK: Record total tokens
-                    self.global_total_tokens += batch.batch['attention_mask'].sum().item()
+                    responses_length = batch.batch['responses'].size(-1)
+                    self.global_total_tokens += batch.batch['attention_mask'][:, -responses_length:].sum().item()
                     metrics.update({'token_budget/total_token_budget': self.global_total_tokens})
                     # End of HACK
 

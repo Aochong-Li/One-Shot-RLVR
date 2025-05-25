@@ -6,10 +6,10 @@ set -x
 N_GPUS=8
 ROLLOUT_N=6
 TENSOR_MODEL_PARALLEL_SIZE=1
-EXPERIMENT_NAME="Qwen2.5-Math-1.5B-deepmath-4096-rollout-${ROLLOUT_N}"
-TOTAL_EPOCHS=5 # 56445 * 5 / 256 = 1100 steps
-SAVE_STEPS=200 # 1100 / 200 = 6 checkpoints
-EVAL_STEPS=50 # 1100 / 50 = 22 times
+EXPERIMENT_NAME="Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-${ROLLOUT_N}"
+TOTAL_EPOCHS=5 # 46000 * 5 / 128 = 1750 steps
+SAVE_STEPS=200 # 1750 / 200 = 8 checkpoints
+EVAL_STEPS=50 # 1750 / 50 = 35 times
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export VLLM_ATTENTION_BACKEND=XFORMERS
@@ -21,9 +21,9 @@ export CHECKPOINTS_DIR="./outputs"
 
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
- data.train_files=data/train/deepmath_4096/train.parquet \
+ data.train_files=data/train/deepmath_4096_hard/train.parquet \
  data.val_files=data/test/math500.parquet \
- data.train_batch_size=256 \
+ data.train_batch_size=128 \
  data.val_batch_size=512 \
  data.max_prompt_length=256 \
  data.max_response_length=3840 \
@@ -57,11 +57,14 @@ python3 -m verl.trainer.main_ppo \
  trainer.project_name='verl_rlvr'\
  trainer.experiment_name=$EXPERIMENT_NAME \
  trainer.checkpoints_dir=$CHECKPOINTS_DIR \
+ trainer.resume_mode='disable' \
  +trainer.val_before_train=True \
  trainer.n_gpus_per_node=$N_GPUS \
  trainer.nnodes=1 \
  trainer.save_freq=$SAVE_STEPS \
  trainer.test_freq=$EVAL_STEPS \
  trainer.total_epochs=$TOTAL_EPOCHS \
- trainer.push_to_hub=True \
- trainer.username=aochongoliverli 2>&1 | tee verl_demo.log
+ trainer.push_to_hub=False 2>&1 | tee verl_demo.log
+
+ ## Push Saved Checkpoints to Huggingface
+ python3 push_to_hf/experiments.py --project_name verl_rlvr --run_name $EXPERIMENT_NAME
