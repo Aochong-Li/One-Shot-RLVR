@@ -19,15 +19,15 @@ preprocessing_num_workers: 8
 ### output
 output_dir: ./outputs/llamafactory-sft/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT
 logging_steps: 1
-save_steps: 100
+save_steps: 489 # Total Steps: 4890 ==> 10 checkpoints
 plot_loss: true
 
 ### train
-# Effective batch size = per_device_train_batch_size * gradient_accumulation_steps * num_gpus = 2 * 16 * 4 = 128
-per_device_train_batch_size: 2
-gradient_accumulation_steps: 16
+# Effective batch size = per_device_train_batch_size * gradient_accumulation_steps * num_gpus = 4 * 8 * 4 = 128
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 8
 learning_rate: 1.0e-5
-num_train_epochs: 3.0
+num_train_epochs: 3
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
 bf16: true

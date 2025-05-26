@@ -1057,6 +1057,8 @@ class RayPPOTrainer(object):
         # HACK: Record total tokens
         self.global_steps += 1
         self.global_total_tokens = 0
+        self.token_budget = self.config.trainer.token_budget
+
         total_training_steps = self.config.trainer.total_epochs * len(self.train_dataloader)
         global_step_tqdm = tqdm(range(total_training_steps), desc="Global Training Steps", unit="step", total=total_training_steps, leave=True)
 
@@ -1227,8 +1229,8 @@ class RayPPOTrainer(object):
 
                 self.global_steps += 1
                 global_step_tqdm.update(1)
-                if self.global_steps >= self.total_training_steps:
-
+                if self.global_steps >= self.total_training_steps or \
+                    (self.token_budget is not None and self.global_total_tokens >= self.token_budget):
                     # perform validation after training
                     if self.val_reward_fn is not None:
                         val_metrics = self._validate()
@@ -1238,4 +1240,9 @@ class RayPPOTrainer(object):
                             (self.global_steps - 1) % self.config.trainer.save_freq != 0:
                         with _timer('save_checkpoint', timing_raw):
                             self._save_checkpoint()
+                    return
+
+                # HACK: If token budget is set, check if it is exceeded
+                if self.token_budget is not None and self.global_total_tokens >= self.token_budget:
+                    self._save_checkpoint()
                     return

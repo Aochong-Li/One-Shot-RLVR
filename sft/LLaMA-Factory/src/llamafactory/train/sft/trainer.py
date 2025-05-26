@@ -32,7 +32,6 @@ from ...extras.packages import is_transformers_version_equal_to_4_46
 from ..callbacks import PissaConvertCallback, SaveProcessorCallback
 from ..trainer_utils import create_custom_optimizer, create_custom_scheduler
 
-
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
     from transformers import ProcessorMixin
@@ -67,8 +66,8 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             self.accelerator.clip_grad_norm_ = MethodType(clip_grad_norm_old_version, self.accelerator)
             self.add_callback(BAdamCallback)
         
-        self._loss_tokens = 0
-        self._total_tokens_last_logged = 0
+        self._total_loss_tokens = 0
+        self._total_loss_tokens_last_logged = 0
 
     @override
     def create_optimizer(self) -> "torch.optim.Optimizer":
@@ -103,24 +102,64 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
         loss = super().training_step(model, inputs, num_items_in_batch)
 
         if "labels" in inputs:
-            self._loss_tokens += (inputs["labels"] != IGNORE_INDEX).sum().item()
+            self._total_loss_tokens += (inputs["labels"] != IGNORE_INDEX).sum().item()
         
         return loss
 
-    def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval):        
-        if self.control.should_log:
+    # def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval):        
+    #     if self.control.should_log:
+    #         token_tensor = torch.tensor(
+    #             self._total_loss_tokens, device=self.args.device, dtype=torch.long
+    #         )
+    #         total_tokens = (
+    #             self.accelerator.gather(token_tensor).sum().cpu().item()
+    #         )
+            
+    #         if total_tokens != self._total_tokens_last_logged:
+    #             self.log({"loss_tokens": total_tokens})
+    #             self._total_tokens_last_logged = total_tokens
+        
+    #     super()._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval)
+    
+    def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval):
+        if self.control.should_log and self.state.global_step > self._globalstep_last_logged:
+            logs: Dict[str, float] = {}
+
+            # log total loss tokens
             token_tensor = torch.tensor(
-                self._loss_tokens, device=self.args.device, dtype=torch.long
+                self._total_loss_tokens, device=self.args.device, dtype=torch.long
             )
-            total_tokens = (
+            total_loss_tokens = (
                 self.accelerator.gather(token_tensor).sum().cpu().item()
             )
-            
-            if total_tokens != self._total_tokens_last_logged:
-                self.log({"loss_tokens": total_tokens})
-                self._total_tokens_last_logged = total_tokens
-        
-        super()._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval)
+            if total_loss_tokens != self._total_loss_tokens_last_logged:
+                logs["total_loss_tokens"] = total_loss_tokens
+                self._total_loss_tokens_last_logged = total_loss_tokens
+
+            # all_gather + mean() to get average loss over all processes
+            tr_loss_scalar = self._nested_gather(tr_loss).mean().item()
+
+            # reset tr_loss to zero
+            tr_loss -= tr_loss
+
+            logs["loss"] = round(tr_loss_scalar / (self.state.global_step - self._globalstep_last_logged), 4)
+            if grad_norm is not None:
+                logs["grad_norm"] = grad_norm.detach().item() if isinstance(grad_norm, torch.Tensor) else grad_norm
+            logs["learning_rate"] = self._get_learning_rate()
+
+            self._total_loss_scalar += tr_loss_scalar
+            self._globalstep_last_logged = self.state.global_step
+            self.store_flos()
+
+            self.log(logs)
+
+        metrics = None
+        if self.control.should_evaluate:
+            metrics = self._evaluate(trial, ignore_keys_for_eval)
+
+        if self.control.should_save:
+            self._save_checkpoint(model, trial, metrics=metrics)
+            self.control = self.callback_handler.on_save(self.args, self.state, self.control)
 
     @override
     def prediction_step(

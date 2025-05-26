@@ -155,6 +155,7 @@ algorithm:
     kl_coef: 0.001
 
 trainer:
+  token_budget: None 
   total_epochs: 30
   total_training_steps: null
   project_name: verl_examples

@@ -10,7 +10,7 @@ SPLIT="test"
 NUM_TEST_SAMPLE=-1
 
     
-DATA_NAMES="aime25x8,amc23x8,aime24x8"
+DATA_NAMES="aime25x8,aime24x8,amc23x8" #"aime25x8,amc23x8,aime24x8"
 IFS=',' read -ra DATASETS <<< "$DATA_NAMES"
 ALL_EXIST=true
 
@@ -89,4 +89,3 @@ else
         --max_tokens_per_call ${MAX_TOKENS_PER_CALL} \
         --overwrite 
 fi
-

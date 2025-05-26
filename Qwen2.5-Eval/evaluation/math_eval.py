@@ -116,6 +116,7 @@ def setup(args):
             tensor_parallel_size=len(available_gpus) // args.pipeline_parallel_size,
             pipeline_parallel_size=args.pipeline_parallel_size,
             trust_remote_code=True,
+            enforce_eager=True
         )
         tokenizer = None
         if args.apply_chat_template:
@@ -163,6 +164,8 @@ def main(llm, tokenizer, data_name, args):
     print("data:", data_name, " ,remain samples:", len(examples))
     if len(examples) > 0:
         print(examples[0])
+    # HACK: dataset subset from math500 for testing
+    data_name = "math500" if "math500" in data_name else data_name
 
     # init python executor
     if "pal" in args.prompt_type:
@@ -319,7 +322,7 @@ def main(llm, tokenizer, data_name, args):
             )
 
         assert len(outputs) == len(current_prompts)
-
+        
         # process all outputs
         remain_prompts = []
         remain_codes = []
