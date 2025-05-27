@@ -4,16 +4,14 @@ export CUDA_VISIBLE_DEVICES=0,1
 MAX_TOKENS="4096"
 
 MODEL_LIST=(
-    "aochongoliverli/Qwen2.5-Math-1.5B-dsr_sub-global_step_1350"
-    "aochongoliverli/Qwen2.5-Math-1.5B-dsr_sub-global_step_1000"
-    "aochongoliverli/Qwen2.5-Math-1.5B-dsr_sub-global_step_800"
-    "aochongoliverli/Qwen2.5-Math-1.5B-dsr_sub-global_step_500"
-    "aochongoliverli/Qwen2.5-Math-1.5B-dsr_sub-global_step_200"
-    "aochongoliverli/Qwen2.5-Math-1.5B-dsr_sub-global_step_0"
+    "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_600"
+    "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_1000"
+    "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_1400"
+    "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_1800"
 )
 for MODEL in "${MODEL_LIST[@]}";do
     echo "======== Evaluating checkpoint at epoch: ${MODEL} ========"
-    OUTPUT_DIR="/share/goyal/lio/reasoning/eval/benchmarks/market/${MODEL}"
+    OUTPUT_DIR="./results/deepmath-4096-rollout-8/${MODEL}"
 
     mkdir -p $OUTPUT_DIR
 
