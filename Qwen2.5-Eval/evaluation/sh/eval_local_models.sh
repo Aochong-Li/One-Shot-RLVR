@@ -1,15 +1,17 @@
 # rm -rf sh/eval_checkpoint_yiping.sh; vim sh/eval_checkpoint_yiping.sh
-PROMPT_TYPE="qwen25-math-think"
-export CUDA_VISIBLE_DEVICES="1"
+PROMPT_TYPE="qwen25-math-system"
+export CUDA_VISIBLE_DEVICES=0,1
 MAX_TOKENS="4096"
 
-EPOCHS_LIST=(4 9 14 19)
-for EPOCH in "${EPOCHS_LIST[@]}";do
-    echo "======== Evaluating checkpoint at epoch: ${EPOCH} ========"
-    MODEL_NAME_OR_PATH="/share/goyal/lio/reasoning/model/math_12k/Qwen2.5-Math-1.5B_grpo_math_12k_rollout_8_max_length_3000/actor/epoch_${EPOCH}"
-    OUTPUT_DIR="/share/goyal/lio/reasoning/eval/benchmarks/r1/Qwen2.5-Math-1.5B_grpo_math_12k_rollout_8_max_length_3000/epoch_${EPOCH}"
-
+STEP_LIST=(489 2445 4890)
+for STEP in "${STEP_LIST[@]}";do
+    MODEL_NAME_OR_PATH="/home/al2644/research/codebase/reasoning/rlvr/sft/LLaMA-Factory/outputs/llamafactory-sft/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT/checkpoint-${STEP}"
+    OUTPUT_DIR="./results/deepmath-hard-4096-sft/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT-checkpoint-${STEP}"
+    echo "======== Evaluating checkpoint at Global Step: ${STEP} ========"
     mkdir -p $OUTPUT_DIR
 
     bash sh/eval_all_math.sh $PROMPT_TYPE $MODEL_NAME_OR_PATH $MAX_TOKENS $OUTPUT_DIR
+    echo "======== Saving results to: ${OUTPUT_DIR} ========"
+
 done
+3705123
