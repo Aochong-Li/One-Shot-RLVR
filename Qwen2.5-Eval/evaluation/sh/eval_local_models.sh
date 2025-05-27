@@ -1,5 +1,5 @@
 # rm -rf sh/eval_checkpoint_yiping.sh; vim sh/eval_checkpoint_yiping.sh
-PROMPT_TYPE="qwen25-math-boxed"
+PROMPT_TYPE="qwen25-math-think"
 export CUDA_VISIBLE_DEVICES=0,1
 MAX_TOKENS="4096"
 
