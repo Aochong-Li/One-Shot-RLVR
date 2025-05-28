@@ -14,8 +14,6 @@ def push_model_checkpoints (project_name: str, run_name: str):
     global_steps = [step for step in os.listdir(local_checkpoint_dir) if "checkpoint-" in step]
 
     for global_step in global_steps:
-        if global_step != "checkpoint-4890":
-            continue
         model_name = f"{run_name}-{global_step.replace('checkpoint-', '')}"
         # Use the checkpoint directory itself as it contains the model files
         local_checkpoint = f"{local_checkpoint_dir}/{global_step}"

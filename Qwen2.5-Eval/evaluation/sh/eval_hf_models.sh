@@ -4,14 +4,12 @@ export CUDA_VISIBLE_DEVICES=0,1
 MAX_TOKENS="4096"
 
 MODEL_LIST=(
-    "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_600"
-    "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_1000"
-    "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_1400"
-    "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_1800"
+    "aochongoliverli/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT-continue-4890"
+    "aochongoliverli/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT-continue-2934"
 )
 for MODEL in "${MODEL_LIST[@]}";do
     echo "======== Evaluating checkpoint at epoch: ${MODEL} ========"
-    OUTPUT_DIR="./results/deepmath-hard-4096-rollout-8/${MODEL}"
+    OUTPUT_DIR="./results/DeepMath-Hard-SFT-continue/${MODEL}"
 
     mkdir -p $OUTPUT_DIR
 
