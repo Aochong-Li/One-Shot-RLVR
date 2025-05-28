@@ -25,6 +25,9 @@ def main(config):
 
 
 def run_distill_data(config, compute_score=None):
+    main_task(config, compute_score)
+    return
+    
     if not ray.is_initialized():
         # this is for local ray cluster
         ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
@@ -32,7 +35,7 @@ def run_distill_data(config, compute_score=None):
     ray.get(main_task.remote(config, compute_score))
 
 
-@ray.remote(num_cpus=1)  # please make sure main_task is not scheduled on head
+# @ray.remote(num_cpus=1)  # please make sure main_task is not scheduled on head
 def main_task(config, compute_score=None):
     from verl.utils.fs import copy_local_path_from_hdfs
     # print initial config
@@ -128,7 +131,7 @@ def main_task(config, compute_score=None):
                             reward_fn=reward_fn,
                             val_reward_fn=val_reward_fn)
     trainer.init_workers()
-    trainer.collect_reasoning_data()
+    trainer.distill_reasoning_data()
 
 
 if __name__ == '__main__':
