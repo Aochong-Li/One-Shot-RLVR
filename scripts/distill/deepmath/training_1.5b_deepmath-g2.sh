@@ -3,7 +3,7 @@ set -x
 
 # CHECKPOINTS_DIR=... # TODO: change to your own path
 # Dataset Size: 56445
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
 export MODEL_PATH="aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-4096-rollout-8-global_step_1800"
