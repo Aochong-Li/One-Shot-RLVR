@@ -16,7 +16,7 @@ python3 -m verl.trainer.main_distill_data \
  algorithm.adv_estimator=grpo \
  data.train_files=data/train/deepmath_4096_hard/train.parquet \
  data.val_files=data/test/math500.parquet \
- data.train_batch_size=3 \
+ data.train_batch_size=8 \
  data.max_prompt_length=256 \
  data.max_response_length=3840 \
  reward_model.reward_manager='naive' \

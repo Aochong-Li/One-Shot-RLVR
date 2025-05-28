@@ -1243,7 +1243,7 @@ class RayPPOTrainer(object):
                     self._save_checkpoint()
                     return
                 
-    # HACK: New Functions
+    #HACK: Functions for collecting reasoning distillation data from model responses
     def update_reasoning_dataset(self, batch, reward_tensor, score_record):
         """
         Update the reasoning dataset with the new reasoning traces.
@@ -1254,84 +1254,193 @@ class RayPPOTrainer(object):
         for i in range(batch_size):
             index = batch.non_tensor_batch["index"][i]
             sequence = score_record[i]["sequences_str"]
-            reward = rewards[i]
-            end_of_input_index = sequence.index("<|im_start|>assistant\n") + len("<|im_start|>assistant\n")
+            reward = rewards[i].item()
+            
+            # Parse the sequence to extract input and response
+            delimiter = "<|im_start|>assistant\n"
+            if delimiter not in sequence:
+                print(f"Warning: Delimiter not found in sequence for index {index}")
+                continue
+                
+            end_of_input_index = sequence.index(delimiter) + len(delimiter)
             input_str, response_str = sequence[:end_of_input_index], sequence[end_of_input_index:]
 
-            if index not in self.reasoning_dataset: # More direct check
+            # Initialize or update the dataset entry
+            if index not in self.reasoning_dataset:
                 self.reasoning_dataset[index] = {
                     "question": input_str,
                     "correct_responses": [response_str] if reward == 1 else [],
                     "attempts": 1
                 }
             else:
-                # Get the existing entry
                 entry = self.reasoning_dataset[index]
                 
-                # If response is correct, add it to correct_responses
-                if reward == 1:
-                    entry["correct_responses"].append(response_str)
+                # If response is correct and we haven't reached max, add it (avoid duplicates)
+                if reward == 1 and len(entry["correct_responses"]) < self.max_correct_responses:
+                    if response_str not in entry["correct_responses"]:
+                        entry["correct_responses"].append(response_str)
                 
                 # Always increment attempts
                 entry["attempts"] += 1
-                
-                # Update the dataset with the modified entry
-                self.reasoning_dataset[index] = entry
 
-    def update_finished_questions(self):        
-        for index, responses in self.reasoning_dataset.items():
-            if len(responses["correct_responses"]) >= self.max_correct_responses or responses["attempts"] >= self.max_retries:
+    def update_finished_questions(self):
+        """
+        Update the set of finished questions based on completion criteria.
+        Returns the number of newly finished questions.
+        """
+        initial_count = len(self.finished_questions)
+        
+        for index, entry in self.reasoning_dataset.items():
+            if (len(entry["correct_responses"]) >= self.max_correct_responses or 
+                entry["attempts"] >= self.max_retries):
                 self.finished_questions.add(index)
+        
+        newly_finished = len(self.finished_questions) - initial_count
+        return newly_finished
                 
-    def save_reasoning_dataset(self):
-        reasoning_hf_dataset = Dataset.from_list(list(self.reasoning_dataset.values()))
-        reasoning_hf_dataset.push_to_hub(f"{self.config.trainer.username}/{self.config.trainer.experiment_name}")
+    def save_reasoning_dataset(self, force_save=False):
+        """
+        Save reasoning dataset to HuggingFace with error handling.
+        """
+        try:
+            dataset_list = []
+            for index, entry in self.reasoning_dataset.items():
+                dataset_list.append({
+                    "index": index,
+                    "question": entry["question"],
+                    "correct_responses": entry["correct_responses"],
+                    "num_correct": len(entry["correct_responses"]),
+                    "attempts": entry["attempts"],
+                    "is_complete": (len(entry["correct_responses"]) >= self.max_correct_responses or 
+                                  entry["attempts"] >= self.max_retries)
+                })
+            
+            reasoning_hf_dataset = Dataset.from_list(dataset_list)
+            
+            # Save to HuggingFace
+            repo_name = f"{self.config.trainer.username}/{self.config.trainer.experiment_name}-reasoning-data"
+            completion_pct = len(self.finished_questions) / len(self.train_dataset) * 100
+            
+            reasoning_hf_dataset.push_to_hub(
+                repo_name,
+                commit_message=f"Progress: {len(self.finished_questions)}/{len(self.train_dataset)} complete ({completion_pct:.1f}%)"
+            )
+            
+            print(f"Saved reasoning dataset: {len(self.finished_questions)}/{len(self.train_dataset)} questions complete")
+            return True
+            
+        except Exception as e:
+            print(f"Error saving reasoning dataset: {e}")
+            return False
     
     def remove_finished_questions(self, batch_dict):
-        batch_dict = batch_dict.copy()
-        mask = torch.tensor([index not in self.finished_questions for index in batch_dict["index"]])
+        """
+        Efficiently filter out finished questions from the batch.
+        Returns None if no questions remain, otherwise returns filtered batch_dict.
+        """
+        if not self.finished_questions:
+            return batch_dict
+            
+        # Create mask for unfinished questions
+        indices = batch_dict["index"]
+        mask = torch.tensor([index not in self.finished_questions for index in indices], dtype=torch.bool)
+        
+        # Early exit if no valid questions remain
         if mask.sum() == 0:
             return None
 
-        batch_dict["input_ids"] = batch_dict["input_ids"][mask]
-        batch_dict["attention_mask"] = batch_dict["attention_mask"][mask]
-        batch_dict["position_ids"] = batch_dict["position_ids"][mask]
+        # Early exit if all questions are still valid (no filtering needed)
+        if mask.sum() == len(indices):
+            return batch_dict
 
-        batch_dict["data_source"] = batch_dict["data_source"][mask]
-        batch_dict["ability"] = batch_dict["ability"][mask]
-        batch_dict["reward_model"] = batch_dict["reward_model"][mask]
-        batch_dict["extra_info"] = batch_dict["extra_info"][mask]
-        batch_dict["index"] = batch_dict["index"][mask]
+        # Create filtered batch_dict efficiently
+        filtered_batch = {}
+        for key, value in batch_dict.items():
+            if isinstance(value, torch.Tensor):
+                filtered_batch[key] = value[mask]
+            else:
+                raise Exception(f"Unsupported type: {type(value)}")
 
-        return batch_dict
+        return filtered_batch
+
+    def load_reasoning_progress(self):
+        """
+        Load existing reasoning progress from HuggingFace if available.
+        """
+        try:
+            # Try to load from HuggingFace
+            repo_name = f"{self.config.trainer.username}/{self.config.trainer.experiment_name}-reasoning-data"
+            from datasets import load_dataset
+            existing_dataset = load_dataset(repo_name, split='train')
+            
+            # Reconstruct reasoning_dataset and finished_questions
+            self.reasoning_dataset = {}
+            self.finished_questions = set()
+            
+            for item in existing_dataset:
+                index = item['index']
+                self.reasoning_dataset[index] = {
+                    "question": item['question'],
+                    "correct_responses": item['correct_responses'],
+                    "attempts": item['attempts']
+                }
+                
+                if item.get('is_complete', False):
+                    self.finished_questions.add(index)
+            
+            print(f"Loaded existing progress: {len(self.finished_questions)}/{len(self.train_dataset)} complete")
+            return True
+                
+        except Exception as e:
+            print(f"No existing dataset found, starting fresh: {e}")
+            
+        # Initialize empty if loading failed
+        self.reasoning_dataset = {}
+        self.finished_questions = set()
+        return False
 
     def distill_reasoning_data(self, max_correct_responses=8, max_retries=64):
         """
-        No training is done in this function.
-        This collects the reasoning traces for questions from a given model.
+        Optimized reasoning data distillation with progress tracking.
+        No training is done in this function. This collects reasoning traces for questions from a given model.
         """
         self.max_correct_responses = max_correct_responses
         self.max_retries = max_retries
 
-        self.reasoning_dataset = {}
-        self.finished_questions = set()
+        # Try to load existing progress
+        self.load_reasoning_progress()
         
-        print(f"Total number of questions: {self.train_dataset.__len__()}")
-        while len(self.finished_questions) < self.train_dataset.__len__():
-            for batch_dict in self.train_dataloader:
+        print(f"Starting reasoning data distillation:")
+        print(f"  Total questions: {len(self.train_dataset)}")
+        print(f"  Max correct responses per question: {self.max_correct_responses}")
+        print(f"  Max retries per question: {self.max_retries}")
+        print(f"  Already finished: {len(self.finished_questions)}")
+        
+        # Early exit if all questions are already complete
+        if len(self.finished_questions) >= len(self.train_dataset):
+            print("All questions already completed!")
+            self.save_reasoning_dataset(force_save=True)
+            return
+        
+        save_frequency = min(100, len(self.train_dataset) // 20)
+        last_save_count = len(self.finished_questions)
+        
+        while len(self.finished_questions) < len(self.train_dataset):
+            for batch_dict in tqdm(self.train_dataloader, desc="Distilling reasoning data"):
                 timing_raw = {}
                 
-                batch_dict = self.remove_finished_questions(batch_dict)
-                if batch_dict is None:
+                # Filter out finished questions
+                filtered_batch_dict = self.remove_finished_questions(batch_dict)
+                if filtered_batch_dict is None:
                     continue
+                
+                batch: DataProto = DataProto.from_single_dict(filtered_batch_dict)
 
-                batch: DataProto = DataProto.from_single_dict(batch_dict)
-
-                # pop those keys for generation
+                # Pop keys for generation
                 gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
 
                 with _timer('step', timing_raw):
-                    # generate a batch
+                    # Generate responses
                     with _timer('gen', timing_raw):
                         gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
 
@@ -1341,19 +1450,34 @@ class RayPPOTrainer(object):
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(gen_batch_output)
 
-                    # Compute the reward scores
-                    with _timer('adv', timing_raw):
-                        # we combine with rule-based rm
+                    # Compute reward scores
+                    with _timer('reward', timing_raw):
                         reward_tensor, score_record = self.reward_fn(batch)
                         batch.batch['token_level_scores'] = reward_tensor
                     
-                    # Collect correct reasoning traces
+                    # Update reasoning dataset
                     self.update_reasoning_dataset(batch, reward_tensor, score_record)
-                    self.update_finished_questions()
+                    newly_finished = self.update_finished_questions()
+                    
+                    # Progress reporting
+                    if newly_finished > 0:
+                        completion_pct = len(self.finished_questions) / len(self.train_dataset) * 100
+                        print(f"Progress: {len(self.finished_questions)}/{len(self.train_dataset)} complete ({completion_pct:.1f}%)")
 
-                    if len(self.finished_questions) % 100 == 0 and len(self.finished_questions) > 0:
-                        self.save_reasoning_dataset()
+                    # Periodic saving
+                    if (len(self.finished_questions) - last_save_count) >= save_frequency:
+                        if self.save_reasoning_dataset():
+                            last_save_count = len(self.finished_questions)
         
-        # Save the final reasoning dataset
-        self.save_reasoning_dataset()
-
+        # Final save
+        print("Reasoning data distillation completed. Performing final save...")
+        self.save_reasoning_dataset(force_save=True)
+        
+        # Final statistics
+        total_questions = len(self.train_dataset)
+        finished_questions = len(self.finished_questions)
+        completion_pct = finished_questions / total_questions * 100
+        
+        print(f"\n=== Summary ===")
+        print(f"Completed: {finished_questions}/{total_questions} ({completion_pct:.1f}%)")
+        print(f"Total traces collected: {sum(len(entry['correct_responses']) for entry in self.reasoning_dataset.values())}")
