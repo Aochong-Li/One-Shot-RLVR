@@ -1,5 +1,5 @@
 ### model
-model_name_or_path: Qwen/Qwen2.5-Math-1.5B
+model_name_or_path: aochongoliverli/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT-4890
 
 ### method
 stage: sft
@@ -17,22 +17,22 @@ overwrite_cache: true
 preprocessing_num_workers: 8
 
 ### output
-output_dir: ./outputs/llamafactory-sft/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT-beta
+output_dir: ./outputs/llamafactory-sft/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT-continue
 logging_steps: 1
-save_steps: 10
+save_steps: 978 # Total Steps: 4890 ==> 5 checkpoints
 plot_loss: true
 
 ### train
-# Effective batch size = per_device_train_batch_size * gradient_accumulation_steps * num_gpus = 1 * 16 * 2 = 32
-per_device_train_batch_size: 1
-gradient_accumulation_steps: 16
+# Effective batch size = per_device_train_batch_size * gradient_accumulation_steps * num_gpus = 4 * 8 * 4 = 128
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 8
 learning_rate: 1.0e-5
-num_train_epochs: 3.0
+num_train_epochs: 3
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
 bf16: true
 ddp_timeout: 180000000
 
 report_to: wandb
-run_name: Qwen2.5-Math-1.5B-DeepMath-Hard-SFT-beta
+run_name: Qwen2.5-Math-1.5B-DeepMath-Hard-SFT-continue
 

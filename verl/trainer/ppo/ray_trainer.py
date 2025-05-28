@@ -50,6 +50,7 @@ import re
 import matplotlib.pyplot as plt
 import random
 from tqdm import tqdm
+from datasets import Dataset
 
 
 WorkerType = Type[Worker]
@@ -1033,12 +1034,6 @@ class RayPPOTrainer(object):
 
         self.global_steps = 0
 
-        # load checkpoint before doing anything
-        self._load_checkpoint()
-
-        # TODO: REMOVE THIS         
-        # self._save_checkpoint()
-
         # perform validation before training
         # currently, we only support validation using the reward_function.
         if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
@@ -1150,6 +1145,7 @@ class RayPPOTrainer(object):
                         valid_mask = torch.ones(len(uids), dtype=torch.bool)
                         solve_none = 0
                         solve_all = 0
+
                         for uid in unique_uids:
                             uid_mask = uids == uid
                             uid_rewards = reward_tensor[uid_mask].sum(-1)  # Sum rewards for each sequence
@@ -1246,3 +1242,101 @@ class RayPPOTrainer(object):
                 if self.token_budget is not None and self.global_total_tokens >= self.token_budget:
                     self._save_checkpoint()
                     return
+                
+    # HACK: New Functions
+    def update_reasoning_dataset (self, reward_tensor, score_record):
+        """
+        Update the reasoning dataset with the new reasoning traces.
+        """
+        batch_size = reward_tensor.shape[0]
+        rewards = reward_tensor.sum(-1)
+        for i in range(batch_size):
+            if rewards[i] == 1:
+                record = score_record[i]
+                end_of_input_index = record.index("<|im_start|>assistant\n")
+                input_str, response_str = record[:end_of_input_index], record[end_of_input_index:]
+
+                if input_str not in self.reasoning_dataset.keys():
+                    self.reasoning_dataset[input_str] = {
+                        "question": input_str,
+                        "correct_responses": [response_str],
+                        "attempts": 1
+                    }
+                else:
+                    correct_responses = self.reasoning_dataset[input_str]["correct_responses"]
+                    attempts = self.reasoning_dataset[input_str]["attempts"]
+
+                    if len(correct_responses) < self.max_correct_responses:
+                        correct_responses.append(response_str)
+                    
+                    attempts += 1
+                    self.reasoning_dataset[input_str] = {
+                        "question": input_str,
+                        "correct_responses": correct_responses,
+                        "attempts": attempts
+                    }
+        return self.reasoning_dataset
+
+    def update_num_of_finished_questions(self):
+        num_of_finished_questions = 0
+        
+        for _, responses in self.reasoning_dataset.items():
+            if len(responses["correct_responses"]) >= self.max_correct_responses or responses["attempts"] >= self.max_retries:
+                num_of_finished_questions += 1
+
+        return num_of_finished_questions
+
+    def save_reasoning_dataset(self):
+        reasoning_hf_dataset = Dataset.from_dict(self.reasoning_dataset.values())
+        reasoning_hf_dataset.push_to_hub(f"{self.config.trainer.username}/{self.config.trainer.experiment_name}")
+
+    def distill_reasoning_data(self, max_correct_responses=5, max_retries=32):
+        """
+        No training is done in this function.
+        This collects the reasoning traces for questions from a given model.
+        """
+        import pdb; pdb.set_trace()
+        self.max_correct_responses = max_correct_responses
+        self.max_retries = max_retries
+        # load checkpoint before doing anything
+        self._load_checkpoint()
+            
+        # we start from step 1
+        # HACK: Record total tokens
+        self.reasoning_dataset = {}
+        num_of_finished_questions = 0
+
+        while num_of_finished_questions < self.train_dataset.len():
+            for batch_dict in self.train_dataloader:
+                timing_raw = {}
+
+                batch: DataProto = DataProto.from_single_dict(batch_dict)
+                # pop those keys for generation
+                gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
+
+                score_records = []
+                with _timer('step', timing_raw):
+                    # generate a batch
+                    with _timer('gen', timing_raw):
+                        gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
+
+                    batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
+                                                             dtype=object)
+                    # repeat to align with repeated responses in rollout
+                    batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
+                    batch = batch.union(gen_batch_output)
+
+                    # Compute the reward scores
+                    with _timer('adv', timing_raw):
+                        # we combine with rule-based rm
+                        reward_tensor, score_record = self.reward_fn(batch)
+                        score_records.extend(score_record)
+                        batch.batch['token_level_scores'] = reward_tensor
+                    
+                    # Collect correct reasoning traces
+                    self.reasoning_dataset = self.update_reasoning_dataset(self.reasoning_dataset, reward_tensor, score_record)
+                    num_of_finished_questions = self.update_num_of_finished_questions()
+
+                    if num_of_finished_questions % 100 == 0:
+                        self.save_reasoning_dataset()
+

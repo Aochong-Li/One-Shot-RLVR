@@ -157,9 +157,9 @@ def process_deepmath_sft(batch, tokenizer, min_difficulty_level):
         question = batch['question'][i]
         answer = batch['final_answer'][i]
         difficulty = batch['difficulty'][i]
-        r1_solution_1 = batch['r1_solution_1'][i]
-        r1_solution_2 = batch['r1_solution_2'][i]
-        r1_solution_3 = batch['r1_solution_3'][i]
+        r1_solution_1 = batch['r1_solution_1'][i].replace("<think>","").replace("</think>","")
+        r1_solution_2 = batch['r1_solution_2'][i].replace("<think>","").replace("</think>","")
+        r1_solution_3 = batch['r1_solution_3'][i].replace("<think>","").replace("</think>","")
 
         if difficulty >= min_difficulty_level:
             problems.extend([question] * 3)
