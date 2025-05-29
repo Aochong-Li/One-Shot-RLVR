@@ -10,7 +10,7 @@ SPLIT="test"
 NUM_TEST_SAMPLE=-1
 
     
-DATA_NAMES="aime25x8,aime24x8,amc23x8" #"aime25x8,amc23x8,aime24x8"
+DATA_NAMES="aime25x8,aime24x8,amc23x8"
 IFS=',' read -ra DATASETS <<< "$DATA_NAMES"
 ALL_EXIST=true
 
@@ -51,7 +51,7 @@ else
 fi
 
 
-DATA_NAMES="minerva_math,olympiadbench,math500"
+DATA_NAMES="minerva_math,olympiadbench,math500,gsm8k"
 IFS=',' read -ra DATASETS <<< "$DATA_NAMES"
 ALL_EXIST=true
 

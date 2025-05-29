@@ -1358,6 +1358,8 @@ class RayPPOTrainer(object):
         for key, value in batch_dict.items():
             if isinstance(value, torch.Tensor):
                 filtered_batch[key] = value[mask]
+            elif isinstance(value, np.ndarray):
+                filtered_batch[key] = value[np.array(mask)]
             else:
                 raise Exception(f"Unsupported type: {type(value)}")
 
@@ -1422,11 +1424,13 @@ class RayPPOTrainer(object):
             self.save_reasoning_dataset(force_save=True)
             return
         
-        save_frequency = min(100, len(self.train_dataset) // 20)
+        save_frequency = max(100, (len(self.train_dataset) - len(self.finished_questions)) // 20)
         last_save_count = len(self.finished_questions)
         
         while len(self.finished_questions) < len(self.train_dataset):
-            for batch_dict in tqdm(self.train_dataloader, desc="Distilling reasoning data"):
+            global_batch_tqdm = tqdm(range(self.train_dataloader.__len__()), desc="Global Training Steps", unit="step", leave=True)
+
+            for batch_dict in self.train_dataloader:
                 timing_raw = {}
                 
                 # Filter out finished questions
@@ -1468,6 +1472,7 @@ class RayPPOTrainer(object):
                     if (len(self.finished_questions) - last_save_count) >= save_frequency:
                         if self.save_reasoning_dataset():
                             last_save_count = len(self.finished_questions)
+                global_batch_tqdm.update(1)
         
         # Final save
         print("Reasoning data distillation completed. Performing final save...")

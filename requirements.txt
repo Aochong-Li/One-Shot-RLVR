@@ -1,6 +1,7 @@
 torch==2.4.0
 torchaudio==2.4.0
 torchvision==0.19.0
+ninja==1.11.1.4
 
 accelerate==1.6.0
 aiohappyeyeballs==2.6.1
@@ -68,7 +69,7 @@ fastapi-cli==0.0.7
 fastjsonschema==2.21.1
 fastrlock==0.8.3
 filelock==3.18.0
-flash-attn==2.5.8
+flash-attn
 Flask==3.0.3
 Flask-Compress==1.17
 fonttools==4.56.0
