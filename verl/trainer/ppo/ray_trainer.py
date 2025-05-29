@@ -1438,6 +1438,19 @@ class RayPPOTrainer(object):
                 if filtered_batch_dict is None:
                     continue
                 
+                # Ensure batch size is divisible by world_size to avoid padding issues
+                if len(filtered_batch_dict['index']) % self.actor_rollout_wg.world_size != 0:
+                    for k, v in filtered_batch_dict.items():
+                        last_instance = v[-1:]
+                        if isinstance(v, torch.Tensor):
+                            filtered_batch_dict[k] = torch.cat([v, last_instance.unsqueeze(0)])
+                        elif isinstance(v, np.ndarray):
+                            filtered_batch_dict[k] = np.concatenate([v, last_instance])
+                        elif isinstance(v, list):
+                            filtered_batch_dict[k] = v + [last_instance]
+                        else:
+                            raise ValueError(f"Unsupported type: {type(v)}")
+                
                 batch: DataProto = DataProto.from_single_dict(filtered_batch_dict)
 
                 # Pop keys for generation
