@@ -33,5 +33,5 @@ bf16: true
 ddp_timeout: 180000000
 
 report_to: wandb
-run_name: Qwen2.5-Math-1.5B-DeepMath-Hard-SFT
+run_name: Qwen2.5-Math-1.5B-DeepMath-Hard-GRPO-1800-steps-SFT
 
