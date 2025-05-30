@@ -9,7 +9,7 @@ deepspeed: examples/deepspeed/ds_z3_offload_config.json  # choices: [ds_z0_confi
 
 ### dataset
 dataset_dir: ./data
-dataset: DeepMath-Hard-4096-SFT
+dataset: DeepMath-Hard-4096-GRPO-1800-steps
 template: qwen25_math
 cutoff_len: 4096
 max_samples: 1000000
@@ -17,19 +17,18 @@ overwrite_cache: true
 preprocessing_num_workers: 8
 
 ### output
-output_dir: ./outputs/llamafactory-sft/Qwen2.5-Math-1.5B-DeepMath-Hard-SFT
+output_dir: ./outputs/llamafactory-sft/Qwen2.5-Math-1.5B-DeepMath-Hard-GRPO-1800-steps-SFT
 logging_steps: 1
-save_steps: 489 # Total Steps: 4890 ==> 10 checkpoints
+save_steps: 1390
 plot_loss: true
 
 ### train
-# Effective batch size = per_device_train_batch_size * gradient_accumulation_steps * num_gpus = 4 * 8 * 4 = 128
-per_device_train_batch_size: 4
-gradient_accumulation_steps: 8
+# Effective batch size = per_device_train_batch_size * gradient_accumulation_steps * num_gpus = 8 * 2 * 8 = 128
+per_device_train_batch_size: 8
+gradient_accumulation_steps: 2
 learning_rate: 1.0e-5
-num_train_epochs: 3
+num_train_epochs: 5
 lr_scheduler_type: cosine
-warmup_ratio: 0.1
 bf16: true
 ddp_timeout: 180000000
 

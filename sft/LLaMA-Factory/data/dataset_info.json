@@ -667,8 +667,22 @@
       "rejected": "rejected"
     }
   },
-  "DeepMath-4096-SFT-Hard": {
+  "DeepMath-Hard-4096-SFT": {
     "hf_hub_url": "aochongoliverli/deepmath-4096-hard-sft", 
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "DeepMath-Hard-4096-GRPO-1800-steps": {
+    "hf_hub_url": "aochongoliverli/Qwen2.5-Math-1.5B-deepmath-hard-1800-steps-4096-self-distill-sft", 
     "split": "train",
     "formatting": "sharegpt",
     "columns": {

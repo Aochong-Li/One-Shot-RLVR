@@ -9,7 +9,7 @@ deepspeed: examples/deepspeed/ds_z3_offload_config.json  # choices: [ds_z0_confi
 
 ### dataset
 dataset_dir: ./data
-dataset: DeepMath-4096-SFT-Hard
+dataset: DeepMath-Hard-4096-SFT
 template: qwen25_math
 cutoff_len: 4096
 max_samples: 1000000

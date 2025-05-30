@@ -32,11 +32,27 @@ conda activate zero
  bash scripts/train/deepmath/training_1.5b_deepmath-8a100.sh
  ```
 
+ ## Evaluation Environment
+ ```bash
+ conda create -y -n rlvr_eval python=3.10
+ conda activate rlvr_eval
+ cd Qwen2.5-Eval/evaluation
+ cd latex2sympy
+ pip install -e .
+ cd ..
+ pip install -r requirements.txt 
+ pip install vllm==0.5.1 --no-build-isolation
+ pip install transformers==4.42.3
+ pip install wandb matplotlib
+ pip install -U transformers
+ pip install vllm==0.6.3
+ pip install vllm-flash-attn==2.6.2
+ ```        
+
  ## Llama-Factory Installation
  ```bash
  cd sft/LLaMA-Factory
  conda deactivate
- conda create -n llama-factory python=3.11
  conda activate llama-factory
  
  pip install --upgrade huggingface_hub
@@ -58,3 +74,5 @@ conda activate zero
  labels = dataset_module['train_dataset'][0]['labels']
  attention_mask = dataset_module['train_dataset'][0]['attention_mask']
  ```
+
+
