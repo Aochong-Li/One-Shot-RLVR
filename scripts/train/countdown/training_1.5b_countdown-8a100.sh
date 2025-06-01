@@ -3,7 +3,7 @@ set -x
 
 # CHECKPOINTS_DIR=... # TODO: change to your own path
 # Dataset Size: 490K
-# export HUGGINGFACE_HUB_TOKEN="YOUR_TOKEN_HERE"
+# export HUGGINGFACE_HUB_TOKEN="YOUR TOKEN HERE"
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export VLLM_ATTENTION_BACKEND=XFORMERS
@@ -12,12 +12,13 @@ export BASE_MODEL="Qwen/Qwen2.5-3B"
 
 N_GPUS=8
 ROLLOUT_N=8
+MAX_LENGTH=3840
 TENSOR_MODEL_PARALLEL_SIZE=1
 TOTAL_EPOCHS=1
-SAVE_STEPS=200
+SAVE_STEPS=100
 EVAL_STEPS=50
 
-EXPERIMENT_NAME="Qwen2.5-3B-countdown-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts"
+EXPERIMENT_NAME="Qwen2.5-3B-countdown-level4-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length"
 
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
@@ -26,7 +27,7 @@ python3 -m verl.trainer.main_ppo \
  data.train_batch_size=256 \
  data.val_batch_size=512 \
  data.max_prompt_length=256 \
- data.max_response_length=3840 \
+ data.max_response_length=$MAX_LENGTH \
  reward_model.reward_manager='naive' \
  actor_rollout_ref.model.path=$BASE_MODEL \
  actor_rollout_ref.actor.optim.lr=1e-6 \

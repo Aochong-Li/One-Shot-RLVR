@@ -1280,7 +1280,7 @@ class RayPPOTrainer(object):
                     "question": input_str,
                     "response": [response_str],
                     "reward": [reward],
-                    "global_step": self.global_steps
+                    "global_step": [self.global_steps]
                 }
             else:
                 entry = self.reasoning_dataset[index]
