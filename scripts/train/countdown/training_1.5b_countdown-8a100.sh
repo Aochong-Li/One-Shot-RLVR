@@ -3,6 +3,7 @@ set -x
 
 # CHECKPOINTS_DIR=... # TODO: change to your own path
 # Dataset Size: 490K
+# export HUGGINGFACE_HUB_TOKEN="YOUR_TOKEN_HERE"
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export VLLM_ATTENTION_BACKEND=XFORMERS
