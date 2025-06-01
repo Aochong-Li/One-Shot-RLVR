@@ -22,7 +22,7 @@ python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
  data.train_files=data/train/countdown/train.parquet \
  data.val_files=data/train/countdown/test.parquet \
- data.train_batch_size=128 \
+ data.train_batch_size=256 \
  data.val_batch_size=512 \
  data.max_prompt_length=256 \
  data.max_response_length=3840 \
@@ -44,7 +44,7 @@ python3 -m verl.trainer.main_ppo \
  actor_rollout_ref.rollout.name=vllm \
  actor_rollout_ref.rollout.temperature=1.0 \
  +actor_rollout_ref.rollout.val_temperature=0.6 \
- actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
+ actor_rollout_ref.rollout.gpu_memory_utilization=0.4 \
  actor_rollout_ref.rollout.n=$ROLLOUT_N \
  +actor_rollout_ref.rollout.n_val=1 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
