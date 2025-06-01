@@ -1239,7 +1239,8 @@ class RayPPOTrainer(object):
                 self.reasoning_dataset[index] = {
                     "question": item['question'],
                     "response": item['response'],
-                    "reward": item['reward']
+                    "reward": item['reward'],
+                    "global_step": item['global_step']
                 }
                 
             return True
@@ -1278,13 +1279,15 @@ class RayPPOTrainer(object):
                 self.reasoning_dataset[index] = {
                     "question": input_str,
                     "response": [response_str],
-                    "reward": [reward]
+                    "reward": [reward],
+                    "global_step": self.global_steps
                 }
             else:
                 entry = self.reasoning_dataset[index]
                 entry["response"].append(response_str)
                 entry["reward"].append(reward)
-    
+                entry["global_step"].append(self.global_steps)
+                
     def save_reasoning_dataset(self):
         """
         Save reasoning dataset to HuggingFace with error handling.
@@ -1296,7 +1299,8 @@ class RayPPOTrainer(object):
                     "index": index,
                     "question": entry["question"],
                     "response": entry["response"],
-                    "reward": entry["reward"]
+                    "reward": entry["reward"],
+                    "global_step": entry["global_step"]
                 })
             
             reasoning_hf_dataset = Dataset.from_list(dataset_list)
