@@ -1236,6 +1236,11 @@ class RayPPOTrainer(object):
             
             for item in existing_dataset:
                 index = item['index']
+                global_step = item['global_step'][0]
+
+                if global_step > self.global_steps:
+                    continue
+                
                 self.reasoning_dataset[index] = {
                     "question": item['question'],
                     "response": item['response'],
@@ -1333,7 +1338,8 @@ class RayPPOTrainer(object):
                           config=OmegaConf.to_container(self.config, resolve=True))
 
         self.global_steps = 0
-
+        
+        self._load_checkpoint()
         # perform validation before training
         # currently, we only support validation using the reward_function.
         if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):

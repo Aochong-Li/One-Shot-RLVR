@@ -3,19 +3,19 @@ set -x
 
 # CHECKPOINTS_DIR=... # TODO: change to your own path
 # Dataset Size: 490K
-# export HUGGINGFACE_HUB_TOKEN="YOUR_TOKEN_HERE"
+# export HUGGINGFACE_HUB_TOKEN="YOUR TOKEN HERE"
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
 export BASE_MODEL="Qwen/Qwen2.5-3B"
 
-N_GPUS=4
-ROLLOUT_N=8
-MAX_LENGTH=2048
+N_GPUS=2
+ROLLOUT_N=4
+MAX_LENGTH=3840
 TENSOR_MODEL_PARALLEL_SIZE=1
 TOTAL_EPOCHS=1
-SAVE_STEPS=100
+SAVE_STEPS=200
 EVAL_STEPS=50
 
 EXPERIMENT_NAME="Qwen2.5-3B-countdown-level4-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length"
@@ -34,20 +34,19 @@ python3 -m verl.trainer.main_ppo \
  actor_rollout_ref.model.use_remove_padding=True \
  actor_rollout_ref.actor.ppo_mini_batch_size=128 \
  actor_rollout_ref.actor.use_dynamic_bsz=True \
- actor_rollout_ref.actor.ppo_max_token_len_per_gpu=24000 \
+ actor_rollout_ref.actor.ppo_max_token_len_per_gpu=32768 \
  actor_rollout_ref.actor.use_kl_loss=True \
  actor_rollout_ref.actor.kl_loss_coef=0.001 \
  actor_rollout_ref.actor.kl_loss_type=low_var_kl \
  actor_rollout_ref.model.enable_gradient_checkpointing=True \
- actor_rollout_ref.actor.fsdp_config.param_offload=True \
- +actor_rollout_ref.actor.fsdp_config.grad_offload=True \
- actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
- +actor_rollout_ref.actor.fsdp_config.state_dict_offload=True \
+ actor_rollout_ref.actor.fsdp_config.param_offload=False \
+ +actor_rollout_ref.actor.fsdp_config.grad_offload=False \
+ actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
  actor_rollout_ref.rollout.tensor_model_parallel_size=$TENSOR_MODEL_PARALLEL_SIZE \
  actor_rollout_ref.rollout.name=vllm \
  actor_rollout_ref.rollout.temperature=1.0 \
  +actor_rollout_ref.rollout.val_temperature=0.6 \
- actor_rollout_ref.rollout.gpu_memory_utilization=0.25 \
+ actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
  actor_rollout_ref.rollout.n=$ROLLOUT_N \
  +actor_rollout_ref.rollout.n_val=1 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
