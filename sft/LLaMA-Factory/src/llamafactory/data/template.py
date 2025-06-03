@@ -1069,6 +1069,17 @@ _register_template(
     replace_eos=True,
     replace_jinja_template=False,
 )
+
+_register_template(
+    name="qwen25_countdown",
+    format_user=StringFormatter(slots=["{{content}}"]),
+    format_assistant=StringFormatter(slots=["{{content}}"]),
+    format_system=None,
+    stop_words=["<|endoftext|>"],
+    efficient_eos=True,
+    replace_jinja_template=False,
+)
+
 # copied from chatml template
 _register_template(
     name="qwen2_vl",

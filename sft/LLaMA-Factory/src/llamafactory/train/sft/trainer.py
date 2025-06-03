@@ -106,21 +106,6 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
         
         return loss
 
-    # def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval):        
-    #     if self.control.should_log:
-    #         token_tensor = torch.tensor(
-    #             self._total_loss_tokens, device=self.args.device, dtype=torch.long
-    #         )
-    #         total_tokens = (
-    #             self.accelerator.gather(token_tensor).sum().cpu().item()
-    #         )
-            
-    #         if total_tokens != self._total_tokens_last_logged:
-    #             self.log({"loss_tokens": total_tokens})
-    #             self._total_tokens_last_logged = total_tokens
-        
-    #     super()._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval)
-    
     def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval):
         if self.control.should_log and self.state.global_step > self._globalstep_last_logged:
             logs: Dict[str, float] = {}

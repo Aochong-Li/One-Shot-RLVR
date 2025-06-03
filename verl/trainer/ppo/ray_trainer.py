@@ -1323,7 +1323,6 @@ class RayPPOTrainer(object):
             print(f"Error saving reasoning dataset: {e}")
             return False
 
-
     def fit_collect(self):
         """
         The training loop of PPO with reasoning trace collection.

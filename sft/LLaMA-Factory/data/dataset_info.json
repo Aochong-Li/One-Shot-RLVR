@@ -694,5 +694,33 @@
       "user_tag": "user",
       "assistant_tag": "assistant"
     }
+  },
+  "Qwen2.5-3B-countdown-level4-4rollouts-1024max-length-success": {
+    "hf_hub_url": "aochongoliverli/Qwen2.5-3B-countdown-level4-1epochs-4rollouts-1024max-length-reasoning-traces-rollout-sft", 
+    "split": "correct",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "Qwen2.5-3B-countdown-level4-4rollouts-1024max-length-all": {
+    "hf_hub_url": "aochongoliverli/Qwen2.5-3B-countdown-level4-1epochs-4rollouts-1024max-length-reasoning-traces-rollout-sft", 
+    "split": "correct_format",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
   }
 }
