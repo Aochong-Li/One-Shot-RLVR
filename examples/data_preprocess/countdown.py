@@ -60,6 +60,10 @@ def make_prefix(dp, template_type):
 User: Using the numbers {numbers}, create an equation that equals {target}. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> (1 + 2) / 3 </answer>.
 Assistant: Let me solve this step by step.
 <think>"""
+    elif template_type == 'base-2':
+        prefix = f"""Using the numbers {numbers}, create an equation that equals {target}. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags. For example, <answer> (1 + 2) / 3 </answer>.
+Let me see if I can solve this step by step.
+<think>"""
     elif template_type == 'qwen-instruct':
         """This works for Qwen Instruct Models"""
         prefix = f"""<|im_start|>system\nYou are a helpful assistant. You first thinks about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\n Using the numbers {numbers}, create an equation that equals {target}. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> (1 + 2) / 3 </answer>.<|im_end|>\n<|im_start|>assistant\nLet me solve this step by step.\n<think>"""
@@ -68,60 +72,103 @@ Assistant: Let me solve this step by step.
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--local_dir', default='~/data/countdown')
+    parser.add_argument('--local_dir', required=True)
+    parser.add_argument('--cot_dir', type=str, default=None, required=False)
     parser.add_argument('--hdfs_dir', default=None)
     parser.add_argument('--num_samples', type=int, default=100000)
     parser.add_argument('--num_operands', type=int, default=6)
     parser.add_argument('--max_target', type=int, default=1000)
     parser.add_argument('--min_number', type=int, default=1)
     parser.add_argument('--max_number', type=int, default=100)
-    parser.add_argument('--train_size', type=int, default=163840)
+    parser.add_argument('--train_size', type=int, default=327680)
     parser.add_argument('--test_size', type=int, default=1024)
     parser.add_argument('--template_type', type=str, default='base')
 
     args = parser.parse_args()
 
     data_source = 'countdown'
+    cot_data = args.cot_dir is not None
     TRAIN_SIZE = args.train_size
     TEST_SIZE = args.test_size
 
-    raw_dataset = load_dataset('Jiayi-Pan/Countdown-Tasks-4', split='train')
+    if not cot_data:
+        raw_dataset = load_dataset('Jiayi-Pan/Countdown-Tasks-3to4', split='train')
+    else:
+        raw_dataset = load_dataset('json', data_files={'train': args.cot_dir})['train']
 
     assert len(raw_dataset) > TRAIN_SIZE + TEST_SIZE
     train_dataset = raw_dataset.select(range(TRAIN_SIZE))
     test_dataset = raw_dataset.select(range(TRAIN_SIZE, TRAIN_SIZE + TEST_SIZE))
 
+    pattern = r"\[((?:-?\d+(?:\s*,\s*-?\d+)*))\]\s*and\s*target\s*(-?\d+)"
+
     def make_map_fn(split):
         def process_fn(example, idx):
-            question = make_prefix(example, template_type=args.template_type)
-            solution = {
-                "target": example['target'],
-                "numbers": example['nums']
-            }
-            data = {
-                "data_source": data_source,
-                "prompt": [{
-                    "role": "user",
-                    "content": question,
-                }],
-                "ability": "math",
-                "reward_model": {
-                    "style": "rule",
-                    "ground_truth": solution
-                },
-                "extra_info": {
-                    'split': split,
-                    'index': idx,
+            if not cot_data:
+                question = make_prefix(example, template_type=args.template_type)
+                solution = {
+                    "target": example['target'],
+                    "numbers": example['nums']
                 }
-            }
-            return data
+                data = {
+                    "data_source": data_source,
+                    "prompt": [{
+                        "role": "user",
+                        "content": question,
+                    }],
+                    "ability": "math",
+                    "reward_model": {
+                        "style": "rule",
+                        "ground_truth": solution
+                    },
+                    "extra_info": {
+                        'split': split,
+                        'index': idx,
+                    }
+                }
+                return data
+            else:
+                question = example['query']
+                match = re.search(pattern, question)               
+                if not match: 
+                    return None 
+                nums = [int(num.strip() for num in match.group(1).split(','))]
+                target = int(match.group(2))
+                solution = {
+                    "target": target,
+                    "numbers": nums
+                }
+                data = {
+                    "data_source": data_source,
+                    "prompt": [{
+                        "role": "user",
+                        "content": question,
+                    }],
+                    "ability": "math",
+                    "reward_model": {
+                        "style": "rule",
+                        "ground_truth": solution
+                    },
+                    "extra_info": {
+                        'split': split,
+                        'index': idx,
+                        "answer": example['completion'],
+                        "question": question
+                    }
+                }
+                return data
+
         return process_fn
     
     train_dataset = train_dataset.map(function=make_map_fn('train'), with_indices=True)
     test_dataset = test_dataset.map(function=make_map_fn('test'), with_indices=True)
 
+
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir
+
+    if not os.path.exists(local_dir):
+        os.makedirs(local_dir, exist_ok=True)
 
     train_dataset.to_parquet(os.path.join(local_dir, 'train.parquet'))
     test_dataset.to_parquet(os.path.join(local_dir, 'test.parquet'))
