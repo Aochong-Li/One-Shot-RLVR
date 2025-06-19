@@ -128,7 +128,11 @@ def main_task(config, compute_score=None):
                             reward_fn=reward_fn,
                             val_reward_fn=val_reward_fn)
     trainer.init_workers()
-    trainer.fit()
+    
+    if config.trainer.username is not None:
+        trainer.fit_collect()
+    else:
+        trainer.fit()
 
 
 if __name__ == '__main__':
