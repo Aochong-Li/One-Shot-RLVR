@@ -21,9 +21,15 @@ git checkout grpo
 conda activate zero
 ```
 
-## Upload model weights
+<!-- ## Upload model weights
 ```bash
  python push_to_hf/experiments.py --project_name verl_rlvr --run_name Qwen2.5-Math-1.5B-dsr_sub
+ ``` -->
+
+ ## Generate DeepMath Training Data
+ ```bash
+ python data/format_parquet/deepmath_dataset.py --local_dir "./data/train/" --difficulty_levels 5 6
+ python data/format_parquet/deepmath_dataset.py --local_dir "./data/train/" --difficulty_levels 7 8 9
  ```
 
  ## Launch GRPO jobs on DeepMath
