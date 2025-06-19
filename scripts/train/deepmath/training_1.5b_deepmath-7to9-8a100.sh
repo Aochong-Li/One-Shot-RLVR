@@ -9,6 +9,7 @@ SAVE_STEPS=200 # 781 / 200 = 4 checkpoints
 EVAL_STEPS=50 # 781 / 50 = 16 times
 ROLLOUT_N=8
 TENSOR_MODEL_PARALLEL_SIZE=1
+MAX_LENGTH=16384
 
 EXPERIMENT_NAME="R1-Distill-Qwen-1.5B-deepmath-level7-9-max-length-${MAX_LENGTH}-rollout-${ROLLOUT_N}"
 
@@ -23,7 +24,7 @@ python3 -m verl.trainer.main_ppo \
  data.train_batch_size=128 \
  data.val_batch_size=512 \
  data.max_prompt_length=256 \
- data.max_response_length=16384 \
+ data.max_response_length=$MAX_LENGTH \
  reward_model.reward_manager='naive' \
  actor_rollout_ref.model.path=$BASE_MODEL \
  actor_rollout_ref.actor.optim.lr=1e-6 \
@@ -40,7 +41,7 @@ python3 -m verl.trainer.main_ppo \
  actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
  actor_rollout_ref.rollout.tensor_model_parallel_size=$TENSOR_MODEL_PARALLEL_SIZE \
  actor_rollout_ref.rollout.name=vllm \
- actor_rollout_ref.rollout.temperature=0.6 \
+ actor_rollout_ref.rollout.temperature=1.0 \
  +actor_rollout_ref.rollout.val_temperature=0.6 \
  actor_rollout_ref.rollout.gpu_memory_utilization=0.75 \
  actor_rollout_ref.rollout.n=$ROLLOUT_N \
@@ -60,7 +61,7 @@ python3 -m verl.trainer.main_ppo \
  trainer.save_freq=$SAVE_STEPS \
  trainer.test_freq=$EVAL_STEPS \
  trainer.total_epochs=$TOTAL_EPOCHS \
- trainer.push_to_hub=False 2>&1 | tee verl_demo.log
+ trainer.push_to_hub=False 2>&1 | tee $CHECKPOINTS_DIR/verl_rlvr.log
 
  ## Push Saved Checkpoints to Huggingface
  python3 push_to_hf/experiments.py --project_name verl_rlvr --run_name $EXPERIMENT_NAME

@@ -155,11 +155,11 @@ algorithm:
     kl_coef: 0.001
 
 trainer:
-  token_budget: None 
+  token_budget: null 
   total_epochs: 30
   total_training_steps: null
-  project_name: verl_examples
-  experiment_name: gsm8k
+  project_name: verl_rlvr
+  experiment_name: null
   logger: [ 'console', 'wandb' ]
   val_generations_to_log_to_wandb: 0
   nnodes: 1
