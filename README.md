@@ -38,6 +38,15 @@ conda activate zero
  bash scripts/train/deepmath/training_1.5b_deepmath-8a100.sh
  ```
 
+ ## Verl Environment
+ ```bash
+ conda create -y -n zero python=3.9
+ conda activate zero
+ cd rlvr
+ git pull
+ pip install -r requirements.txt 
+ ```  
+
  ## Evaluation Environment
  ```bash
  conda create -y -n rlvr_eval python=3.10
