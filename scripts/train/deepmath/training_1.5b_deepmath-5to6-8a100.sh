@@ -63,7 +63,7 @@ for TEMPERATURE in ${TEMPERATURES}; do
             trainer.save_freq=$SAVE_STEPS \
             trainer.test_freq=$EVAL_STEPS \
             trainer.total_epochs=$TOTAL_EPOCHS \
-            trainer.push_to_hub=False 2>&1 | tee $CHECKPOINTS_DIR/verl_rlvr.log
+            trainer.push_to_hub=False 2>&1 | tee $CHECKPOINTS_DIR/$EXPERIMENT_NAME.log
 
     ## Push Saved Checkpoints to Huggingface
     python3 push_to_hf/experiments.py --project_name verl_rlvr --run_name $EXPERIMENT_NAME
