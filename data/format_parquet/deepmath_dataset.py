@@ -48,7 +48,6 @@ if __name__ == '__main__':
     Example usage:
     python data/format_parquet/deepmath_dataset.py --local_dir "./data/train/"
     """
-    import pdb; pdb.set_trace()
     parser = argparse.ArgumentParser(description='Process datasets for RL Training on DeepMath')
     # parser.add_argument('--difficulty_levels', nargs='+', type=int, default=[1, 2, 3, 4, 5, 6, 7, 8, 9])
     parser.add_argument('--sample_size', type=int, default=20000)
