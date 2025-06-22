@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 import pandas as pd
 # from verl.utils.hdfs_io import copy, makedirs
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 from multiprocessing import Pool
 
 def make_map_fn(split: str):
@@ -46,29 +46,36 @@ def make_map_fn(split: str):
 if __name__ == '__main__':
     """
     Example usage:
-    python data/format_parquet/deepmath_dataset.py --local_dir "./data/train/" --difficulty_levels 5 6
-    python data/format_parquet/deepmath_dataset.py --local_dir "./data/train/" --difficulty_levels 7 8 9
+    python data/format_parquet/deepmath_dataset.py --local_dir "./data/train/"
     """
+    import pdb; pdb.set_trace()
     parser = argparse.ArgumentParser(description='Process datasets for RL Training on DeepMath')
-    parser.add_argument('--difficulty_levels', nargs='+', type=int, default=[1, 2, 3, 4, 5, 6, 7, 8, 9])
+    # parser.add_argument('--difficulty_levels', nargs='+', type=int, default=[1, 2, 3, 4, 5, 6, 7, 8, 9])
     parser.add_argument('--sample_size', type=int, default=20000)
     parser.add_argument('--local_dir', required=True, default='./data/train', help='Local directory to save processed datasets')
     
     args = parser.parse_args()
     local_dir = args.local_dir
-    difficulty_levels = args.difficulty_levels
+    # difficulty_levels = args.difficulty_levels
 
-    data_dir = os.path.join(local_dir, f'deepmath_level{min(difficulty_levels)}-{max(difficulty_levels)}')
+    data_dir = os.path.join(local_dir, f'deepmath_level5-9')
     os.makedirs(data_dir, exist_ok=True)
+    train_dataset = load_dataset("aochongoliverli/DeepMath-103K-split")["train"]
 
-    train_dataset = load_dataset("aochongoliverli/DeepMath-103K-split")["train"].filter(lambda x: x['difficulty'] in difficulty_levels)
     """
     We remove T/F Yes/No questions to make guessing the answer harder
     """
     train_dataset = train_dataset.filter(lambda x: x["final_answer"].lower() not in ["true", "false", "yes", "no"])
+    
+    train_dataset_5to6 = train_dataset.filter(lambda x: x["difficulty"] in [5, 6])
+    train_dataset_7to9 = train_dataset.filter(lambda x: x["difficulty"] in [7, 8, 9])
 
     if args.sample_size is not None:
-        train_dataset = train_dataset.shuffle(seed=42).select(range(args.sample_size))
+        subsample_size = args.sample_size // 2
+        train_dataset_5to6 = train_dataset_5to6.shuffle(seed=42).select(range(subsample_size))
+        train_dataset_7to9 = train_dataset_7to9.shuffle(seed=42).select(range(subsample_size))
+        train_dataset = concatenate_datasets([train_dataset_5to6, train_dataset_7to9])
+    
     process_fn = make_map_fn('train')
 
     def process_dataset(args):
