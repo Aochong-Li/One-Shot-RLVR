@@ -1,6 +1,5 @@
 #!/bin/bash
 set -x
-wandb login --relogin
 
 N_GPUS=8
 BASE_MODEL='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B'
