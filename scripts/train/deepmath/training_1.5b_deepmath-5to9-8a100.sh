@@ -1,6 +1,9 @@
 #!/bin/bash
 set -x
 
+export WANDB_MODE=offline
+export WANDB_DIR=./outputs/wandb
+
 N_GPUS=8
 BASE_MODEL='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B'
 
