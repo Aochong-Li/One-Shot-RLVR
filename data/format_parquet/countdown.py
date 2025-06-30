@@ -39,13 +39,14 @@ def make_map_fn(split: str):
 if __name__ == '__main__':
     """
     Example usage:
-    python data/format_parquet/countdown.py --local_dir "./data/train/countdown" --train_levels 4 5 --test_levels 6 7 --sft_size 5000 --train_size 20000 --test_size_per_level 150
+    python data/format_parquet/countdown.py --local_dir "./data/train/countdown_level45_20k" --train_levels 4 5 --test_levels 6 7 --used_size 5000 --train_size 20000 --test_size_per_level 150
+    python data/format_parquet/countdown.py --local_dir "./data/train/countdown_level5_35k" --train_levels 5 --test_levels 6 7 --used_size 10000 --train_size 35000 --test_size_per_level 150
     """
     parser = argparse.ArgumentParser(description='Process datasets for Countdown training')
     parser.add_argument('--local_dir', required=True, help='Local directory to save processed datasets')
     parser.add_argument('--train_levels', nargs='+', required=True, help='Levels to process')
     parser.add_argument('--test_levels', nargs='+', required=True, help='Levels to process')
-    parser.add_argument('--sft_size', type=int, required=True, default=5000)
+    parser.add_argument('--used_size', type=int, required=True, default=5000)
     parser.add_argument('--train_size', type=int, required=True, default=20000)
     parser.add_argument('--test_size_per_level', type=int, required=True, default=100)
 
@@ -53,7 +54,7 @@ if __name__ == '__main__':
     local_dir = args.local_dir
     train_levels = args.train_levels
     test_levels = args.test_levels
-    sft_size = args.sft_size
+    used_size = args.used_size
     train_size = args.train_size
     test_size_per_level = args.test_size_per_level
 
@@ -64,7 +65,7 @@ if __name__ == '__main__':
     train_dataset, test_dataset = [], []
     for level in train_levels:
         dataset = load_dataset(f"aochongoliverli/countdown_level_{level}")
-        dataset = dataset['train'].select(range(args.sft_size, args.sft_size + train_size_per_level))
+        dataset = dataset['train'].select(range(used_size, used_size + train_size_per_level))
         dataset = dataset.add_column('level', [level] * len(dataset))
         train_dataset.append(dataset)
 
