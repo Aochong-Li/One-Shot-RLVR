@@ -722,5 +722,19 @@
       "user_tag": "user",
       "assistant_tag": "assistant"
     }
+  },
+  "Qwen3-4B-countdown-level3-4-4096max-length-sft-distill": {
+    "hf_hub_url": "aochongoliverli/Qwen3-4B-countdown-level3-4-sft-distill-sft-distill", 
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
   }
 }

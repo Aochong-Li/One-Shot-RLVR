@@ -17,16 +17,15 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
 import ray
 import hydra
-from verl.utils.reward_score import deepscaler
+from verl.utils.reward_score import countdown
 
 @hydra.main(config_path='config', config_name='ppo_trainer', version_base=None)
 def main(config):
-    run_distill_data(config)
+    run_ppo(config)
 
 
-def run_distill_data(config, compute_score=None):
+def run_ppo(config, compute_score=None):
     main_task(config, compute_score)
-    return
 
 def main_task(config, compute_score=None):
     from verl.utils.fs import copy_local_path_from_hdfs
@@ -106,7 +105,7 @@ def main_task(config, compute_score=None):
     # if config.actor_rollout_ref.model.path.strip().startswith("Qwen") or config.actor_rollout_ref.model.path.strip().startswith("meta-llama"):
     if config.actor_rollout_ref.model.path.strip().startswith("Qwen") or 'llama' in config.actor_rollout_ref.model.path.lower() or config.actor_rollout_ref.model.use_think == False:
         print("\nQwen or LLAMA---------------------------------\n")
-        compute_score = deepscaler.compute_score
+        compute_score = countdown.compute_score
         
     reward_fn = reward_manager_cls(tokenizer=tokenizer, num_examine=0, compute_score=compute_score)
 
@@ -124,7 +123,10 @@ def main_task(config, compute_score=None):
                             val_reward_fn=val_reward_fn)
     trainer.init_workers()
     import pdb; pdb.set_trace()
-    trainer.fit_collect()
+    if config.trainer.username is not None:
+        trainer.fit_collect()
+    else:
+        trainer.fit()
 
 
 if __name__ == '__main__':

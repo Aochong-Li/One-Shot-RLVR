@@ -1,0 +1,40 @@
+### model
+model_name_or_path: Qwen/Qwen2.5-3B
+
+### method
+stage: sft
+do_train: true
+finetuning_type: full
+deepspeed: examples/deepspeed/ds_z3_config.json  # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
+
+### dataset
+dataset_dir: ./data
+dataset: Qwen3-4B-countdown-level3-4-4096max-length-sft-distill
+template: qwen25_countdown
+cutoff_len: 5000
+max_samples: 1000000
+overwrite_cache: true
+preprocessing_num_workers: 8
+
+### output
+output_dir: ./outputs/countdown/Qwen2.5-3B-sft-distill-countdown-level3-4
+logging_steps: 10
+save_steps: 150
+plot_loss: true
+
+### train
+# Effective batch size = per_device_train_batch_size * gradient_accumulation_steps * num_gpus = 4 * 8 * 2 = 64
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 8
+# save_only_model: true
+learning_rate: 1.0e-5
+num_train_epochs: 3
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+bf16: true
+ddp_timeout: 180000000
+
+# NOTE: make sure run_name is correct for dataset and num_train_epochs
+report_to: wandb
+run_name: Qwen2.5-3B-sft-distill-countdown-level3-4-3-epochs
+

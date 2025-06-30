@@ -1072,8 +1072,8 @@ _register_template(
 
 _register_template(
     name="qwen25_countdown",
-    format_user=StringFormatter(slots=["{{content}}"]),
-    format_assistant=StringFormatter(slots=["{{content}}"]),
+    format_user=StringFormatter(slots=["<|im_start|>user\n{{content}}<|im_end|>\n"]),
+    format_assistant=StringFormatter(slots=["<|im_start|>assistant\n{{content}}<|im_end|>\n"]),
     format_system=None,
     stop_words=["<|endoftext|>"],
     efficient_eos=True,

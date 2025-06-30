@@ -906,6 +906,29 @@ class RayPPOTrainer(object):
                                                            'latest_checkpointed_iteration.txt')
         with open(local_latest_checkpointed_iteration, 'w') as f:
             f.write(str(self.global_steps))
+        
+        # HACK: push model checkpoints to huggingface
+        if self.config.trainer.push_to_hub:
+            raise NotImplementedError("push_to_hub is not implemented yet. Please push all model weights after the training is done.")
+            
+            local_huggingface_checkpoint = os.path.join(local_global_step_folder, "actor")
+
+            # remove optimizer state
+            try:
+                import glob
+                for filepath in glob.glob(os.path.join(local_huggingface_checkpoint, "*.pt")):
+                    print(f"Removing optimizer state: {filepath}")
+                    os.remove(filepath)
+            except Exception as e:
+                print(f"Error removing optimizer state: {e}")
+            
+            try:
+                model_name = f"{self.config.trainer.experiment_name}-global-step-{self.global_steps}"
+                username = self.config.trainer.username
+                print(f"Pushing model checkpoint to huggingface: {model_name}")
+                push_model_to_hf(model_name, local_huggingface_checkpoint, username)
+            except Exception as e:
+                print(f"Error pushing model checkpoint to huggingface: {e}")
     
     def _load_checkpoint(self):
         if self.config.trainer.resume_mode == 'disable':
@@ -1010,6 +1033,7 @@ class RayPPOTrainer(object):
                           config=OmegaConf.to_container(self.config, resolve=True))
 
         self.global_steps = 0
+        self._load_checkpoint()
 
         # perform validation before training
         # currently, we only support validation using the reward_function.
@@ -1019,11 +1043,6 @@ class RayPPOTrainer(object):
             logger.log(data=val_metrics, step=self.global_steps)
             if self.config.trainer.get('val_only', False):
                 return
-        
-        # save initial checkpoint
-        with _timer('save_initial_checkpoint', {}):
-            print(f"Saving initial checkpoint at step {self.global_steps}")
-            self._save_checkpoint()
 
         # we start from step 1
         # HACK: Record total tokens
@@ -1214,64 +1233,73 @@ class RayPPOTrainer(object):
                         with _timer('save_checkpoint', timing_raw):
                             self._save_checkpoint()
                     return
-
-                # HACK: If token budget is set, check if it is exceeded
-                if self.token_budget is not None and self.global_total_tokens >= self.token_budget:
-                    self._save_checkpoint()
-                    return
-    
+                
     # HACK: Functions for collecting reasoning rollouts during RL training
-    def load_reasoning_progress(self):
+    def load_rollout_dataset(self):
         """
         Load existing reasoning progress from HuggingFace if available.
         """
         try:
             # Try to load from HuggingFace
-            repo_name = f"{self.config.trainer.username}/{self.config.trainer.experiment_name}-reasoning-traces"
+            repo_name = f"{self.config.trainer.username}/{self.config.trainer.experiment_name}-rollouts"
             from datasets import load_dataset
             existing_dataset = load_dataset(repo_name, split='train')
             
             # Reconstruct reasoning_dataset and finished_questions
-            self.reasoning_dataset = {}
+            self.rollout_dataset = {}
             
             for item in existing_dataset:
                 index = item['index']
-                global_step = item['global_step'][0]
-
-                if global_step > self.global_steps:
+                global_steps = item['global_step']
+                if min(item['global_step']) > self.global_steps:
                     continue
+
+                # Find valid indices where global_step <= current global_step
+                valid_indices = [i for i, step in enumerate(global_steps) if step <= self.global_steps]
                 
-                self.reasoning_dataset[index] = {
-                    "question": item['question'],
-                    "response": item['response'],
-                    "reward": item['reward'],
-                    "global_step": item['global_step']
+                # If no valid indices, skip this item
+                if not valid_indices:
+                    continue
+
+                # Get the data up to the last valid index
+                last_valid_index = max(valid_indices) + 1  # +1 for slice end
+                
+                self.rollout_dataset[index] = {
+                    "question": item['question'],  # question is a string, keep as is
+                    "response": item['response'][:last_valid_index],
+                    "reward": item['reward'][:last_valid_index], 
+                    "global_step": item['global_step'][:last_valid_index]
                 }
-                
-            return True
                 
         except Exception as e:
             print(f"No existing dataset found, starting fresh: {e}")
             
             # Initialize empty if loading failed
-            self.reasoning_dataset = {}
-
-            return False
+            self.rollout_dataset = {}
     
-    def update_reasoning_dataset(self, batch, reward_tensor, score_record):
+    def update_rollout_dataset(self, batch, reward_tensor, score_record):
         """
         Update the reasoning dataset with the new reasoning traces.
         """
         batch_size = reward_tensor.shape[0]
         rewards = reward_tensor.sum(-1)
 
+        handle = self.tokenizer.apply_chat_template(
+            conversation=[
+                {"role": "user", "content": "HANDLE"},
+            ],
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
+        delimiter = handle.split("HANDLE")[-1]
+            
         for i in range(batch_size):
             index = batch.non_tensor_batch["index"][i]
             sequence = score_record[i]["sequences_str"]
             reward = rewards[i].item()
             
             # Parse the sequence to extract input and response
-            delimiter = "\n<think><|im_end|>\n<|im_start|>assistant\n"
             if delimiter not in sequence:
                 print(f"Warning: Delimiter not found in sequence for index {index}")
                 continue
@@ -1280,26 +1308,26 @@ class RayPPOTrainer(object):
             input_str, response_str = sequence[:end_of_input_index], sequence[end_of_input_index:]
 
             # Initialize or update the dataset entry
-            if index not in self.reasoning_dataset:
-                self.reasoning_dataset[index] = {
+            if index not in self.rollout_dataset:
+                self.rollout_dataset[index] = {
                     "question": input_str,
                     "response": [response_str],
                     "reward": [reward],
                     "global_step": [self.global_steps]
                 }
             else:
-                entry = self.reasoning_dataset[index]
+                entry = self.rollout_dataset[index]
                 entry["response"].append(response_str)
                 entry["reward"].append(reward)
                 entry["global_step"].append(self.global_steps)
                 
-    def save_reasoning_dataset(self):
+    def save_rollout_dataset(self):
         """
         Save reasoning dataset to HuggingFace with error handling.
         """
         try:
             dataset_list = []
-            for index, entry in self.reasoning_dataset.items():
+            for index, entry in self.rollout_dataset.items():
                 dataset_list.append({
                     "index": index,
                     "question": entry["question"],
@@ -1311,16 +1339,16 @@ class RayPPOTrainer(object):
             reasoning_hf_dataset = Dataset.from_list(dataset_list)
             
             # Save to HuggingFace
-            repo_name = f"{self.config.trainer.username}/{self.config.trainer.experiment_name}-reasoning-traces"
+            repo_name = f"{self.config.trainer.username}/{self.config.trainer.experiment_name}-rollouts"
             
             reasoning_hf_dataset.push_to_hub(
                 repo_name,
-                commit_message=f"Saving reasoning traces: {len(self.reasoning_dataset)}"
+                commit_message=f"Saving rollout dataset: {len(self.rollout_dataset)}"
             )
             return True
             
         except Exception as e:
-            print(f"Error saving reasoning dataset: {e}")
+            print(f"Error saving rollout dataset: {e}")
             return False
 
     def fit_collect(self):
@@ -1337,8 +1365,8 @@ class RayPPOTrainer(object):
                           config=OmegaConf.to_container(self.config, resolve=True))
 
         self.global_steps = 0
-        
         self._load_checkpoint()
+
         # perform validation before training
         # currently, we only support validation using the reward_function.
         if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
@@ -1347,18 +1375,12 @@ class RayPPOTrainer(object):
             logger.log(data=val_metrics, step=self.global_steps)
             if self.config.trainer.get('val_only', False):
                 return
-        
-        # save initial checkpoint - FIXED: Uncommented this critical functionality
-        with _timer('save_initial_checkpoint', {}):
-            print(f"Saving initial checkpoint at step {self.global_steps}")
-            self._save_checkpoint()
-
         # we start from step 1
         # HACK: Record total tokens
         self.global_steps += 1
         self.global_total_tokens = 0
         self.token_budget = self.config.trainer.token_budget
-        self.load_reasoning_progress()
+        self.load_rollout_dataset()
 
         total_training_steps = self.config.trainer.total_epochs * len(self.train_dataloader)
         global_step_tqdm = tqdm(range(total_training_steps), desc="Global Training Steps", unit="step", total=total_training_steps, leave=True)
@@ -1446,7 +1468,7 @@ class RayPPOTrainer(object):
                         batch.batch['token_level_scores'] = reward_tensor
 
                         #HACK: Update reasoning dataset
-                        self.update_reasoning_dataset(batch, reward_tensor, score_record)
+                        self.update_rollout_dataset(batch, reward_tensor, score_record)
                         
                         # HACK: Record # solve none and solve all and avg solve rate
                         uids = batch.non_tensor_batch['uid']
@@ -1510,22 +1532,22 @@ class RayPPOTrainer(object):
                         # logger.log(data=score_metrics, step=self.global_steps)
                         metrics.update(score_metrics)
 
-                    # validate + push reasoning traces dataset to huggingface
+                    # validate + push rollout dataset to huggingface
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \
                         self.global_steps % self.config.trainer.test_freq == 0:
                         with _timer('testing', timing_raw):
                             val_metrics: dict = self._validate()
                         metrics.update(val_metrics)
 
-                        # FIXED: Add error handling for saving reasoning dataset
+                        # FIXED: Add error handling for saving rollout dataset
                         try:
-                            success = self.save_reasoning_dataset()
+                            success = self.save_rollout_dataset()
                             if success:
-                                print(f"Successfully saved reasoning dataset at step {self.global_steps}")
+                                print(f"Successfully saved rollout dataset at step {self.global_steps}")
                             else:
-                                print(f"Failed to save reasoning dataset at step {self.global_steps}")
+                                print(f"Failed to save rollout dataset at step {self.global_steps}")
                         except Exception as e:
-                            print(f"Error saving reasoning dataset at step {self.global_steps}: {e}")
+                            print(f"Error saving rollout dataset at step {self.global_steps}: {e}")
 
                     if self.config.trainer.save_freq > 0 and \
                             self.global_steps % self.config.trainer.save_freq == 0:
@@ -1553,26 +1575,16 @@ class RayPPOTrainer(object):
                         pprint(f'Final validation metrics: {val_metrics}')
                         logger.log(data=val_metrics, step=self.global_steps)
                     
-                    # FIXED: Save final reasoning dataset
+                    # save final rollout dataset after training
                     try:
-                        self.save_reasoning_dataset()
-                        print("Final reasoning dataset saved successfully")
+                        self.save_rollout_dataset()
+                        print("Final rollout dataset saved successfully")
                     except Exception as e:
-                        print(f"Error saving final reasoning dataset: {e}")
+                        print(f"Error saving final rollout dataset: {e}")
                     
+                    # save the final checkpoint
                     if self.config.trainer.save_freq > 0 and \
                             (self.global_steps - 1) % self.config.trainer.save_freq != 0:
                         with _timer('save_checkpoint', timing_raw):
                             self._save_checkpoint()
-                    return
-
-                # HACK: If token budget is set, check if it is exceeded
-                if self.token_budget is not None and self.global_total_tokens >= self.token_budget:
-                    # FIXED: Save reasoning dataset before exiting
-                    try:
-                        self.save_reasoning_dataset()
-                        print("Reasoning dataset saved before token budget exit")
-                    except Exception as e:
-                        print(f"Error saving reasoning dataset before exit: {e}")
-                    self._save_checkpoint()
                     return
