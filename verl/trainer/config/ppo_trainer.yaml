@@ -154,6 +154,11 @@ algorithm:
     type: fixed
     kl_coef: 0.001
 
+countdown:
+  online_rl_corrupt: False
+  granuality: 30
+  unit: 0.25
+
 trainer:
   token_budget: null 
   total_epochs: 30

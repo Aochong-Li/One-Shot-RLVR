@@ -164,7 +164,10 @@ class vLLMRollout(BaseRollout):
         # parse idx from torch.Tensor to List[List[str]]
         for i in range(batch_size):
             idx_list.append(_pre_process_inputs(self.pad_token_id, idx[i]))
-
+        
+        # HACK: allow override of n
+        n_rollouts = prompts.meta_info.get('vllm_rollout_n', self.config.n)
+        
         do_sample = prompts.meta_info.get('do_sample', True)
         if not do_sample:
             kwargs = {
@@ -175,15 +178,32 @@ class vLLMRollout(BaseRollout):
                 'temperature': 0,
                 'n': 1  # if greedy, only 1 response
             }
-
+            n_rollouts = 1
+        else:
+            kwargs['n'] = n_rollouts
+        # END OF HACK
+        
         # users can customize different sampling_params at different run
         with self.update_sampling_params(**kwargs):
+            # HACK: allow override of max_tokens
+            if prompts.meta_info.get('max_response_length', None) is not None:
+                max_response_length = prompts.meta_info['max_response_length']
+                sampling_params = []
+                for i in range(len(max_response_length)):
+                    max_tokens = max_response_length[i]
+                    sampling_params_item = self.sampling_params.clone()
+                    sampling_params_item.max_tokens = max_tokens
+                    sampling_params.append(sampling_params_item)
+            else:
+                sampling_params = self.sampling_params
+            # END OF HACK
+            
             output = self.inference_engine.generate(
                 prompts=None,  # because we have already convert it to prompt token id
-                sampling_params=self.sampling_params,
+                sampling_params=sampling_params,
                 prompt_token_ids=idx_list,
                 use_tqdm=False)
-
+    
         # TODO(sgm): disable logprob when recompute_log_prob is enable
         # if n = 1: (bs, response_length) ; if n > 1: (bs * n, response_length)
         response = output[0].to(idx.device)
@@ -193,11 +213,11 @@ class vLLMRollout(BaseRollout):
             response = pad_sequence_to_length(response, self.config.response_length, self.pad_token_id)
             log_probs = pad_sequence_to_length(log_probs, self.config.response_length, self.pad_token_id)
 
-        if self.config.n > 1 and do_sample:
-            idx = idx.repeat_interleave(self.config.n, dim=0)
-            attention_mask = attention_mask.repeat_interleave(self.config.n, dim=0)
-            position_ids = position_ids.repeat_interleave(self.config.n, dim=0)
-            batch_size = batch_size * self.config.n
+        if n_rollouts > 1 and do_sample:
+            idx = idx.repeat_interleave(n_rollouts, dim=0)
+            attention_mask = attention_mask.repeat_interleave(n_rollouts, dim=0)
+            position_ids = position_ids.repeat_interleave(n_rollouts, dim=0)
+            batch_size = batch_size * n_rollouts
         seq = torch.cat([idx, response], dim=-1)
 
         response_length = response.size(1)

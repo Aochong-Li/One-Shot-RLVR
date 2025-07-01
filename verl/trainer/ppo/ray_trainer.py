@@ -906,30 +906,7 @@ class RayPPOTrainer(object):
                                                            'latest_checkpointed_iteration.txt')
         with open(local_latest_checkpointed_iteration, 'w') as f:
             f.write(str(self.global_steps))
-        
-        # HACK: push model checkpoints to huggingface
-        if self.config.trainer.push_to_hub:
-            raise NotImplementedError("push_to_hub is not implemented yet. Please push all model weights after the training is done.")
-            
-            local_huggingface_checkpoint = os.path.join(local_global_step_folder, "actor")
 
-            # remove optimizer state
-            try:
-                import glob
-                for filepath in glob.glob(os.path.join(local_huggingface_checkpoint, "*.pt")):
-                    print(f"Removing optimizer state: {filepath}")
-                    os.remove(filepath)
-            except Exception as e:
-                print(f"Error removing optimizer state: {e}")
-            
-            try:
-                model_name = f"{self.config.trainer.experiment_name}-global-step-{self.global_steps}"
-                username = self.config.trainer.username
-                print(f"Pushing model checkpoint to huggingface: {model_name}")
-                push_model_to_hf(model_name, local_huggingface_checkpoint, username)
-            except Exception as e:
-                print(f"Error pushing model checkpoint to huggingface: {e}")
-    
     def _load_checkpoint(self):
         if self.config.trainer.resume_mode == 'disable':
             # On fresh start, set the initial dataloader based on configuration
@@ -1389,7 +1366,7 @@ class RayPPOTrainer(object):
             for batch_dict in self.train_dataloader:
                 metrics = {}
                 timing_raw = {}
-
+                
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
                 # pop those keys for generation
                 gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
@@ -1494,8 +1471,8 @@ class RayPPOTrainer(object):
                         metrics['batch/solve_all'] = solve_all
                         metrics['batch/avg_solve_rate'] = batch[valid_mask].batch['token_level_scores'].sum(-1).mean().item()
                         # End of HACK
-
                         # compute rewards. apply_kl_penalty if available
+
                         if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):
                             batch, kl_metrics = apply_kl_penalty(batch,
                                                                  kl_ctrl=self.kl_ctrl,
@@ -1531,6 +1508,116 @@ class RayPPOTrainer(object):
                         # Update metrics with returned values instead of direct logging
                         # logger.log(data=score_metrics, step=self.global_steps)
                         metrics.update(score_metrics)
+
+
+                    # HACK: corrupt correct sequences on the fly
+                    """
+                    step 1: find all correct sequences, keep input_ids
+                    step 2: decode input_ids to string
+                    step 3: corrupt the string
+                    step 4: create a new gen batch of input_ids, position_ids, attention_mask
+                    step 5: go through the previous stage again, collect rewards and batch
+                    step 6: update actor
+                    """
+                    if self.config.countdown.online_rl_corrupt:
+                        raise NotImplementedError("Online RL corrupt is not implemented yet")
+                        correct_mask = reward_tensor.sum(-1) == 1
+                        if correct_mask.any():
+                            with _timer('predict_corrupted_sequences', timing_raw):
+                                correct_batch = batch[correct_mask]
+                                
+                                corrupt_dict = {
+                                    'input_ids': correct_batch.batch['input_ids'],
+                                    'attention_mask': correct_batch.batch['attention_mask'],
+                                    'position_ids': correct_batch.batch['position_ids'],
+                                    'data_source': correct_batch.non_tensor_batch['data_source'],
+                                    'ability': correct_batch.non_tensor_batch['ability'],
+                                    'reward_model': correct_batch.non_tensor_batch['reward_model'],
+                                    'index': np.array(['c-' + str(index) for index in correct_batch.non_tensor_batch['index']], dtype=object)
+                                }
+                                corrupt_batch = DataProto.from_single_dict(corrupt_dict)
+                                corrupt_batch_size, world_size = corrupt_batch.__len__(), 2 # TODO: change to self.actor_rollout_wg.world_size
+
+                                if corrupt_batch_size % world_size != 0:
+                                    num_to_pad = world_size - (corrupt_batch_size % world_size)
+                                    padding_indices = random.choices(range(corrupt_batch_size), k=num_to_pad)
+                                    pad_batch = corrupt_batch[padding_indices]
+
+                                    padding_batch = DataProto(batch=pad_batch.batch, non_tensor_batch=pad_batch.non_tensor_batch)
+                                    corrupt_batch = DataProto.concat([corrupt_batch, padding_batch])
+                                
+                                corrupt_gen_batch = core_algos.corrupt_correct_sequences(
+                                    batch = corrupt_batch,
+                                    tokenizer = self.tokenizer,
+                                    granuality = self.config.countdown.granuality,
+                                    unit = self.config.countdown.unit,
+                                    max_response_length = self.config.data.max_response_length
+                                )
+                                corrupt_batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
+                                corrupt_gen_output = self.actor_rollout_wg.generate_sequences(corrupt_gen_batch)
+                                corrupt_batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(corrupt_batch.batch))], dtype=object)
+                                corrupt_batch = corrupt_batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
+
+                                corrupt_batch = corrupt_batch.union(corrupt_gen_output)
+                                
+                                responses_length = corrupt_batch.batch['responses'].size(-1)
+                                self.global_total_tokens += corrupt_batch.batch['attention_mask'][:, -responses_length:].sum().item()
+                                metrics.update({'token_budget/total_token_budget': self.global_total_tokens})
+
+                                self._balance_batch(corrupt_batch, metrics=metrics)
+                                corrupt_batch.meta_info['global_token_num'] = torch.sum(corrupt_batch.batch['attention_mask'], dim=-1).tolist()
+
+                                old_log_prob = self.actor_rollout_wg.compute_log_prob(corrupt_batch)
+                                corrupt_batch = corrupt_batch.union(old_log_prob)
+
+                                if self.use_reference_policy:
+                                    ref_log_prob = self.ref_policy_wg.compute_ref_log_prob(corrupt_batch)
+                                    corrupt_batch = corrupt_batch.union(ref_log_prob)
+                                
+                                
+                                reward_tensor, score_record = self.reward_fn(corrupt_batch)
+                                corrupt_batch.batch['token_level_scores'] = reward_tensor
+                                self.update_rollout_dataset(corrupt_batch, reward_tensor, score_record)
+
+                                uids = corrupt_batch.non_tensor_batch['uid']
+                                unique_uids = np.unique(uids)
+                                valid_mask = torch.ones(len(uids), dtype=torch.bool)
+                                solve_none = 0
+                                solve_all = 0
+
+                                for uid in unique_uids:
+                                    uid_mask = uids == uid
+                                    uid_rewards = reward_tensor[uid_mask].sum(-1)  # Sum rewards for each sequence
+                                    
+                                    # Check if all rewards are 0 or all are 1 for this uid
+                                    if (uid_rewards == 0).all():
+                                        valid_mask[uid_mask] = False
+                                        solve_none += 1
+                                    elif (uid_rewards == 1).all():
+                                        valid_mask[uid_mask] = False
+                                        solve_all += 1
+                                
+                                # Log to metrics
+                                metrics['corrupt_batch/solve_none'] = solve_none
+                                metrics['corrupt_batch/solve_all'] = solve_all
+                                metrics['corrupt_batch/avg_solve_rate'] = corrupt_batch[valid_mask].batch['token_level_scores'].sum(-1).mean().item()
+
+                                if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):
+                                    corrupt_batch, kl_metrics = apply_kl_penalty(corrupt_batch,
+                                                                        kl_ctrl=self.kl_ctrl,
+                                                                        kl_penalty=self.config.algorithm.kl_penalty)
+                                    metrics.update(kl_metrics)
+                                else:
+                                    corrupt_batch.batch['token_level_rewards'] = corrupt_batch.batch['token_level_scores']
+                                
+                                corrupt_batch = compute_advantage(corrupt_batch,
+                                                                    adv_estimator=self.config.algorithm.adv_estimator,
+                                                                    gamma=self.config.algorithm.gamma,
+                                                                    lam=self.config.algorithm.lam,
+                                                                    num_repeat=self.config.actor_rollout_ref.rollout.n)
+
+                                actor_output = self.actor_rollout_wg.update_actor(corrupt_batch)
+                    # END OF HACK
 
                     # validate + push rollout dataset to huggingface
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \

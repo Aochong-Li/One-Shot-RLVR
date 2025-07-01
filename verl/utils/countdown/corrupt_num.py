@@ -10,7 +10,7 @@ def extract_number(text: str) -> Set[str]:
 
     return {m.group(0) for m in _NUMBER_RE.finditer(text)}
 
-def perturb_number(num: str, rng: random.Random) -> str:
+def perturb_number(num: str, rng: random.Random, max_retries: int = 3) -> str:
     """One-step, human-like numeric typo."""
 
     sign = ''
@@ -35,9 +35,7 @@ def perturb_number(num: str, rng: random.Random) -> str:
         new_core = rng.choice([d for d in '0123456789' if d != num])
 
     # ---------------------- multi-digit integers ----------------------------------------
-    elif len(num) == 1:
-        new_core = rng.choice([d for d in '0123456789' if d != num])
-    else:
+    elif len(num) > 1:
         r = rng.random()
         if r < 1 / 3:  # shuffle
             new_core = ''.join(rng.sample(num, len(num)))
@@ -48,6 +46,9 @@ def perturb_number(num: str, rng: random.Random) -> str:
             i = rng.randrange(len(num))
             new_core = num[:i + 1] + num[i] + num[i + 1:]
         new_core = strip_zero(new_core)
+    
+    if new_core == num and max_retries > 0:
+        return perturb_number(num, rng, max_retries - 1)
 
     return sign + new_core
         

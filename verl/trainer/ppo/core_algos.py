@@ -23,7 +23,16 @@ import torch
 from collections import defaultdict
 
 import verl.utils.torch_functional as verl_F
+from verl.utils.countdown import corrupt_num as corrupt_num_utils
+from verl.utils.countdown.chunk_r import equal_chunk
+from verl import DataProto
+from verl.utils.model import compute_position_id_with_mask
+import verl.utils.torch_functional as verl_F
 
+from transformers import AutoTokenizer
+import random
+import math
+from tensordict import TensorDict
 
 class AdaptiveKLController:
     """
@@ -336,3 +345,88 @@ def kl_penalty(logprob: torch.FloatTensor, ref_logprob: torch.FloatTensor, kl_pe
         raise NotImplementedError
 
     raise NotImplementedError
+
+def corrupt_correct_sequences(batch: DataProto,
+                              tokenizer: AutoTokenizer,
+                              max_response_length: int,
+                              granuality: int = 30,
+                              unit: float = 0.25,
+                              seed: int = 42):
+    input_ids = batch.batch['input_ids']
+    attention_mask = batch.batch['attention_mask']
+    input_ids = [input_id[attention_mask[i] == 1] for i, input_id in enumerate(input_ids)]
+    numbers_target_pair = batch.non_tensor_batch['reward_model']
+
+    _, chat_template_suffix = tokenizer.apply_chat_template([{"role": "user", "content": "HANDLE"}], tokenize=False, add_generation_prompt=True).split("HANDLE")
+    sequences = tokenizer.batch_decode(input_ids, skip_special_tokens=False)
+
+    rng = random.Random(seed)
+    corrupt_sequences = []
+
+    for idx, seq in enumerate(sequences):
+        if "</think>" in seq:
+            seq = seq.split("</think>")[0]
+        input_seq, reasoning_seq = seq.split(chat_template_suffix)[0] + chat_template_suffix, seq.split(chat_template_suffix)[-1]
+        chunks = equal_chunk(reasoning_seq, granuality)
+        n = len(chunks)
+
+        # Only corrupt the first half of the reasoning sequence
+        # 1. If corruption starts too late, model does not have enough context to reason about the corruption.
+        # 2. If corruption starts late, it could be too easy
+
+        start_idx = rng.sample(range(int(n * 0.5)), 1)[0]
+        end_idx = start_idx + math.ceil(n * unit)
+        prefix_seq, corrupted_seq = chunks[:start_idx], chunks[start_idx: min(end_idx, n)]
+        prefix_seq = "".join(prefix_seq)
+        corrupted_seq = "".join(corrupted_seq)
+
+        numbers = corrupt_num_utils.extract_number(corrupted_seq)
+        numbers = [num for num in numbers  if num != str(numbers_target_pair[idx]["ground_truth"]["target"])]
+        replacement = {num: corrupt_num_utils.perturb_number(num, rng) for num in numbers}
+        corrupted_seq = corrupt_num_utils.replace_number(corrupted_seq, replacement)
+
+        corrupt_sequences.append(input_seq + prefix_seq + corrupted_seq)
+    
+    # Create a new gen batch of input_ids, position_ids, attention_mask out of corrupt_sequences
+    max_prompt_length = max([len(tokenizer.encode(seq)) for seq in corrupt_sequences])
+    input_ids_batch, attention_mask_batch, position_ids_batch = [], [], []
+    
+    for seq in corrupt_sequences:
+        input_ids, attention_mask = verl_F.tokenize_and_postprocess_data(
+            prompt=seq,
+            tokenizer=tokenizer,
+            max_length=max_prompt_length,
+            pad_token_id=tokenizer.pad_token_id,
+            left_pad=True,
+            truncation='error'
+        )
+        position_ids = compute_position_id_with_mask(attention_mask)
+        
+        input_ids_batch.append(input_ids[0])
+        attention_mask_batch.append(attention_mask[0])
+        position_ids_batch.append(position_ids[0])
+    
+    input_ids_batch = torch.stack(input_ids_batch)
+    attention_mask_batch = torch.stack(attention_mask_batch)
+    position_ids_batch = torch.stack(position_ids_batch)
+    
+    # Use DataProto.from_dict() to ensure proper batch dimension handling
+    tensors = {
+        'input_ids': input_ids_batch,
+        'attention_mask': attention_mask_batch,
+        'position_ids': position_ids_batch
+    }
+    
+    corrupt_gen_batch = DataProto.from_dict(tensors=tensors, non_tensors={}, meta_info={})
+    # corrupt_gen_batch.meta_info['vllm_rollout_n'] = 1
+    corrupt_gen_batch.meta_info['max_response_length'] = [
+        max_response_length - att_mask.sum().item()
+        for att_mask in attention_mask_batch
+    ]
+
+    return corrupt_gen_batch
+
+
+
+
+
