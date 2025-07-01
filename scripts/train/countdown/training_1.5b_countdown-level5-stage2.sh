@@ -1,28 +1,32 @@
 #!/bin/bash
 set -x
 
+# To fix the Ray connection error in Slurm batch jobs, we explicitly set the node's IP for Ray.
+export RAY_NODE_IP_ADDRESS=$(hostname -I | awk '{print $1}')
+
+
 # CHECKPOINTS_DIR=... # TODO: change to your own path
 # export HUGGINGFACE_HUB_TOKEN="YOUR TOKEN HERE"
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
 export BASE_MODEL="aochongoliverli/Qwen2.5-3B-countdown-level4-5-grpo-20k-1epoch"
 
-N_GPUS=4
+N_GPUS=8
 ROLLOUT_N=6
 MAX_LENGTH=8192
-TENSOR_MODEL_PARALLEL_SIZE=1
+TENSOR_MODEL_PARALLEL_SIZE=2
 TOTAL_EPOCHS=2
-SAVE_STEPS=275
+SAVE_STEPS=100
 EVAL_STEPS=30
 
 EXPERIMENT_NAME="Qwen2.5-3B-countdown-level-5-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length"
 
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
- data.train_files=data/train/countdown/train.parquet \
- data.val_files=data/train/countdown/test.parquet \
+ data.train_files=data/train/countdown_level5_35k/train.parquet \
+ data.val_files=data/train/countdown_level5_35k/test.parquet \
  data.train_batch_size=128 \
  data.val_batch_size=256 \
  data.max_prompt_length=256 \
@@ -53,7 +57,7 @@ python3 -m verl.trainer.main_ppo \
  trainer.critic_warmup=0 \
  trainer.logger=['console','wandb'] \
  trainer.project_name='countdown'\
- trainer.username=aochongoliverli \
+ trainer.username='aochongoliverli' \
  trainer.experiment_name=$EXPERIMENT_NAME \
  trainer.checkpoints_dir=$CHECKPOINTS_DIR \
  trainer.resume_mode='disable' \

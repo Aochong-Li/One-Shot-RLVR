@@ -1,17 +1,19 @@
-<div align="center">
-
-# Reinforcement Learning for Reasoning in Large Language Models with One Training Example
-
+<h1 align="center">⏳ RL on CountDown Task</h1>
 
 [Oliver Li](https://github.com/Aochong-Li)
-
-</div>
-
-<!-- ## Updates
-* 17/05/2025: We release our [checkpoints](https://huggingface.co/collections/ypwang61/one-shot-rlvr-6827f72c3359b2ffe75fc1a8) and [dataset](https://huggingface.co/datasets/ypwang61/one_shot_rlvr) in huggingface.
-* 30/04/2025: 🎉 We release our [paper](https://arxiv.org/abs/2504.20571), [code](https://github.com/ypwang61/One-Shot-RLVR), and [wandb records](https://wandb.ai/yipingwanguw/verl_few_shot?nw=nwuseryipingwang22). See the summarization of our work at [X(twitter)](https://x.com/ypwang61/status/1917596101953348000). -->
+<p align="center">
 
 # Instruction 
+
+
+## Install Zero environment
+```
+cd rlvr
+git checkout countdown
+conda create -n zero python=3.10
+conda activate zero
+pip install -r requirement.txt
+```
 
 ## Change to the directory
 ```bash
@@ -26,6 +28,7 @@ conda activate zero
 mkdir -p ./data/train/countdown/
 python ./examples/data_preprocess/countdown.py --local_dir ./data/train/countdown/
 ```
+
 
  python push_to_hf/experiments.py --project_name verl_rlvr --run_name Qwen2.5-Math-1.5B-dsr_sub
  ```
