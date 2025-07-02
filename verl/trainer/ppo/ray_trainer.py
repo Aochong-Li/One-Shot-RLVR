@@ -31,7 +31,7 @@ import numpy as np
 from codetiming import Timer
 from omegaconf import OmegaConf, open_dict
 from verl import DataProto
-from verl.protocol import pad_dataproto_to_divisor, unpad_dataproto
+from verl.protocol import pad_dataproto_to_divisor, unpad_dataproto, dataprotoitem_to_dataproto
 from verl.single_controller.base import Worker
 from verl.single_controller.ray import RayResourcePool, RayWorkerGroup, RayClassWithInitArgs
 from verl.single_controller.ray.base import create_colocated_worker_cls
@@ -1138,7 +1138,7 @@ class RayPPOTrainer(object):
                         # End of HACK
 
                         # compute rewards. apply_kl_penalty if available
-                        if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):
+                        if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False) and not self.config.actor_rollout_ref.actor.get('drop_kl', False):
                             batch, kl_metrics = apply_kl_penalty(batch,
                                                                  kl_ctrl=self.kl_ctrl,
                                                                  kl_penalty=self.config.algorithm.kl_penalty)
@@ -1446,8 +1446,11 @@ class RayPPOTrainer(object):
 
                         #HACK: Update reasoning dataset
                         self.update_rollout_dataset(batch, reward_tensor, score_record)
+                        # END OF HACK
                         
-                        # HACK: Record # solve none and solve all and avg solve rate
+                        # HACK: 
+                        # 1. Record # solve none and solve all and avg solve rate
+                        # 2. remove sequences that either solve none or solve all
                         uids = batch.non_tensor_batch['uid']
                         unique_uids = np.unique(uids)
                         valid_mask = torch.ones(len(uids), dtype=torch.bool)
@@ -1470,6 +1473,26 @@ class RayPPOTrainer(object):
                         metrics['batch/solve_none'] = solve_none
                         metrics['batch/solve_all'] = solve_all
                         metrics['batch/avg_solve_rate'] = batch[valid_mask].batch['token_level_scores'].sum(-1).mean().item()
+                        
+                        if self.config.trainer.rejection_sample:
+                            # If no valid samples remain, skip this batch and get a new one
+                            if not valid_mask.any():
+                                continue
+
+                            # Filter batch to keep only valid samples
+                            batch = batch[valid_mask]
+                            batch = dataprotoitem_to_dataproto(batch)
+                            # Round down to the nearest multiple of world size
+                            num_trainer_replicas = self.actor_rollout_wg.world_size 
+                            max_batch_size = (batch.batch['input_ids'].shape[0] // num_trainer_replicas) * num_trainer_replicas
+                            if not max_batch_size:
+                                # give up, you got everything either all wrong or right.
+                                continue
+
+                            size_mask = torch.zeros(batch.batch['input_ids'].shape[0], dtype=torch.bool)
+                            size_mask[:max_batch_size] = True
+                            batch = batch[size_mask]
+                            batch = dataprotoitem_to_dataproto(batch)
                         # End of HACK
                         # compute rewards. apply_kl_penalty if available
 
@@ -1511,16 +1534,16 @@ class RayPPOTrainer(object):
 
 
                     # HACK: corrupt correct sequences on the fly
-                    """
-                    step 1: find all correct sequences, keep input_ids
-                    step 2: decode input_ids to string
-                    step 3: corrupt the string
-                    step 4: create a new gen batch of input_ids, position_ids, attention_mask
-                    step 5: go through the previous stage again, collect rewards and batch
-                    step 6: update actor
-                    """
                     if self.config.countdown.online_rl_corrupt:
                         raise NotImplementedError("Online RL corrupt is not implemented yet")
+                        """
+                        step 1: find all correct sequences, keep input_ids
+                        step 2: decode input_ids to string
+                        step 3: corrupt the string
+                        step 4: create a new gen batch of input_ids, position_ids, attention_mask
+                        step 5: go through the previous stage again, collect rewards and batch
+                        step 6: update actor
+                        """
                         correct_mask = reward_tensor.sum(-1) == 1
                         if correct_mask.any():
                             with _timer('predict_corrupted_sequences', timing_raw):

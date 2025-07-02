@@ -40,7 +40,7 @@ if __name__ == '__main__':
     """
     Example usage:
     python data/format_parquet/countdown.py --local_dir "./data/train/countdown_level45_20k" --train_levels 4 5 --test_levels 6 7 --used_size 5000 --train_size 20000 --test_size_per_level 150
-    python data/format_parquet/countdown.py --local_dir "./data/train/countdown_level5_35k" --train_levels 5 --test_levels 6 7 --used_size 10000 --train_size 35000 --test_size_per_level 150
+    python data/format_parquet/countdown.py --local_dir "./data/train/countdown_level5_50k" --train_levels 5 --test_levels 6 7 --used_size 15000 --train_size 50000 --test_size_per_level 150
     """
     parser = argparse.ArgumentParser(description='Process datasets for Countdown training')
     parser.add_argument('--local_dir', required=True, help='Local directory to save processed datasets')

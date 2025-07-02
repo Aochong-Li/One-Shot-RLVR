@@ -2,7 +2,7 @@ import random
 from fractions import Fraction
 from typing import List, Tuple, Sequence
 import pandas as pd
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, load_dataset, concatenate_datasets
 from tqdm.auto import tqdm
 import argparse
 
@@ -15,6 +15,7 @@ def generate_countdown_dataset(
     operations: Sequence[str] = ('+', '-', '*', '/', '//', '%'),
     mandatory_operations: Sequence[str] = (),
     seed: int = 42,
+    prior_nums: set[Tuple[int, ...]] = set()
 ) -> Dataset:
     """
     Return a 🤗 Datasets object with `num_samples` rows, guaranteed solvable.
@@ -100,39 +101,60 @@ def generate_countdown_dataset(
     return Dataset.from_list(rows)
 
 if __name__ == "__main__":
+    """
+    python data/generate_dataset/generate_countdown.py --levels 5 6 --train_size 100000 --test_size 5000 --ood_test_size 0
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--levels", type=int, nargs="+", required=True)
     parser.add_argument("--train_size", type=int, default=45000)
     parser.add_argument("--test_size", type=int, default=5000)
     parser.add_argument("--ood_test_size", type=int, default=5000)
+    parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
     
     hf_username = "aochongoliverli"
+
     for level in args.levels:
-        dataset = generate_countdown_dataset(args.train_size + args.test_size,
-                                             num_operands=level,
-                                             max_target=1000,
-                                             min_number=1,
-                                             max_number=100,
-                                             operations=['+', '-', '*', '/']
-                                             )
-        dataset = dataset.train_test_split(test_size=args.test_size)
+        if not args.overwrite:
+            try:
+                prior_dataset = load_dataset(f"{hf_username}/countdown_level_{args.levels[0]}")
+                prior_nums = set(tuple(row['nums']) for row in prior_dataset['train']).union(set(tuple(row['nums']) for row in prior_dataset['test']))
+            except:
+                prior_nums = set()
+                print(f"This is the first time generating the dataset for level {level}")
 
-        ood_dataset = generate_countdown_dataset(args.ood_test_size,
-                                                 num_operands=level,
-                                                 max_target=1000,
-                                                 min_number=1,
-                                                 max_number=100,
-                                                 operations=['+', '-', '*', '/', '//', '%'],
-                                                 mandatory_operations=['//', '%']
-                                                 )
-        final_dataset = DatasetDict({
-            'train': dataset['train'],
-            'test': dataset['test'],
-            'ood_test': ood_dataset
-        })
-
-        final_dataset.push_to_hub(f"{hf_username}/countdown_level_{level}")
+        if args.train_size + args.test_size > 0:
+            dataset = generate_countdown_dataset(args.train_size + args.test_size,
+                                                num_operands=level,
+                                                max_target=1000,
+                                                min_number=1,
+                                                max_number=100,
+                                                operations=['+', '-', '*', '/'],
+                                                prior_nums=prior_nums
+                                                )
+            dataset = dataset.train_test_split(test_size=args.test_size)
+            if prior_nums:
+                for split, data in prior_dataset.items():
+                    if split in dataset:
+                        dataset[split] = concatenate_datasets([data, dataset[split]])
+                    else:
+                        dataset[split] = data
+                    
+        if args.ood_test_size > 0:
+            ood_dataset = generate_countdown_dataset(args.ood_test_size,
+                                                    num_operands=level,
+                                                    max_target=1000,
+                                                    min_number=1,
+                                                    max_number=100,
+                                                    operations=['+', '-', '*', '/', '//', '%'],
+                                                    mandatory_operations=['//', '%']
+                                                    )
+            if 'ood_test' in dataset:
+                dataset['ood_test'] = concatenate_datasets([dataset['ood_test'], ood_dataset])
+            else:
+                dataset['ood_test'] = ood_dataset
+        
+        dataset.push_to_hub(f"{hf_username}/countdown_level_{level}")
 
 
 
