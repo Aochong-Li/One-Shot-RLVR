@@ -736,5 +736,20 @@
       "user_tag": "user",
       "assistant_tag": "assistant"
     }
+  },
+  "Qwen2.5-3B-grpo-stage1-countdown-level5-corrupt-numbers-sft-distill": {
+    "hf_hub_url": "aochongoliverli/Qwen2.5-3B-grpo-stage1-countdown-level5-corrupt-numbers-sft-distill", 
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
   }
+
 }

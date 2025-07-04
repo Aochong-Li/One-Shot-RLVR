@@ -1,28 +1,28 @@
 #!/bin/bash
 set -x
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
 export BASE_MODEL="aochongoliverli/Qwen2.5-3B-countdown-level4-5-grpo-20k-1epoch"
 
-N_GPUS=8
+N_GPUS=4
 ROLLOUT_N=4
 MAX_LENGTH=8192
 TENSOR_MODEL_PARALLEL_SIZE=1
 TOTAL_EPOCHS=2
-SAVE_STEPS=50
-EVAL_STEPS=10
+SAVE_STEPS=25
+EVAL_STEPS=5
 
-EXPERIMENT_NAME="Qwen2.5-3B-countdown-level-5-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length-stage2"
+EXPERIMENT_NAME="Qwen2.5-3B-countdown-level-5-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length-stage2-corrupt_numbers+original"
 
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
- data.train_files=data/train/countdown_level5_30k/train.parquet \
- data.val_files=data/train/countdown_level5_30k/test.parquet \
+ data.train_files=data/train/countdown_level5_corrupt_numbers_14k/train.parquet \
+ data.val_files=data/train/countdown_level5_50k/test.parquet \
  data.train_batch_size=128 \
  data.val_batch_size=1024 \
- data.max_prompt_length=256 \
+ data.max_prompt_length=2048 \
  data.max_response_length=$MAX_LENGTH \
  reward_model.reward_manager='naive' \
  actor_rollout_ref.model.path=$BASE_MODEL \
@@ -47,7 +47,7 @@ python3 -m verl.trainer.main_ppo \
  actor_rollout_ref.rollout.n=$ROLLOUT_N \
  +actor_rollout_ref.rollout.n_val=1 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
- algorithm.kl_ctrl.kl_coef=0.0 \
+ algorithm.kl_ctrl.kl_coef=0.000 \
  trainer.critic_warmup=0 \
  trainer.logger=['console','wandb'] \
  trainer.project_name='countdown'\
