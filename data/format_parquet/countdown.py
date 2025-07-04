@@ -40,10 +40,11 @@ if __name__ == '__main__':
     """
     Example usage:
     python data/format_parquet/countdown.py --local_dir "./data/train/countdown_level45_20k" --train_levels 4 5 --test_levels 6 7 --used_size 5000 --train_size 20000 --test_size_per_level 150
-    python data/format_parquet/countdown.py --local_dir "./data/train/countdown_level5_30k" --train_levels 5 --test_levels 6 7 --used_size 15000 --train_size 30000 --test_size_per_level 150
+    python data/format_parquet/countdown.py --local_train_dir "./data/train/countdown_level5_30k" --train_levels 5  --local_test_dir "./data/test/countdown_level67_500" --test_levels 6 7 --used_size 15000 --train_size 30000 --test_size_per_level 250
     """
     parser = argparse.ArgumentParser(description='Process datasets for Countdown training')
-    parser.add_argument('--local_dir', required=True, help='Local directory to save processed datasets')
+    parser.add_argument('--local_train_dir', required=True, help='Local directory to save processed datasets')
+    parser.add_argument('--local_test_dir', help='Local directory to save processed datasets')
     parser.add_argument('--train_levels', nargs='+', required=True, help='Levels to process')
     parser.add_argument('--test_levels', nargs='+', required=True, help='Levels to process')
     parser.add_argument('--used_size', type=int, required=True, default=5000)
@@ -51,7 +52,8 @@ if __name__ == '__main__':
     parser.add_argument('--test_size_per_level', type=int, required=True, default=100)
 
     args = parser.parse_args()
-    local_dir = args.local_dir
+    local_train_dir = args.local_train_dir
+    local_test_dir = args.local_test_dir if args.local_test_dir else local_train_dir
     train_levels = args.train_levels
     test_levels = args.test_levels
     used_size = args.used_size
@@ -59,9 +61,12 @@ if __name__ == '__main__':
     test_size_per_level = args.test_size_per_level
 
     train_size_per_level = train_size // len(train_levels)
-
+    
+    import pdb; pdb.set_trace()
     # Make local directory if it doesn't exist
-    os.makedirs(local_dir, exist_ok=True)
+    os.makedirs(local_train_dir, exist_ok=True)
+    os.makedirs(local_test_dir, exist_ok=True)
+
     train_dataset, test_dataset = [], []
     for level in train_levels:
         dataset = load_dataset(f"aochongoliverli/countdown_level_{level}")
@@ -71,7 +76,7 @@ if __name__ == '__main__':
 
     for level in test_levels:
         dataset = load_dataset(f"aochongoliverli/countdown_level_{level}")
-        dataset = dataset['test'].select(range(test_size_per_level))
+        dataset = dataset['test'].shuffle(seed=42).select(range(test_size_per_level))
         dataset = dataset.add_column('level', [level] * len(dataset))
         test_dataset.append(dataset)
 
@@ -89,5 +94,5 @@ if __name__ == '__main__':
     train_df = pd.DataFrame(train_data)
     test_df = pd.DataFrame(test_data)
 
-    train_df.to_parquet(os.path.join(local_dir, 'train.parquet'))
-    test_df.to_parquet(os.path.join(local_dir, 'test.parquet'))
+    train_df.to_parquet(os.path.join(local_train_dir, 'train.parquet'))
+    test_df.to_parquet(os.path.join(local_test_dir, 'test.parquet'))

@@ -75,17 +75,17 @@ def corrupt_make_map_fn(split: str):
 if __name__ == '__main__':
     """
     Example usage:
-    python data/format_parquet/countdown_corrupt.py --local_dir "./data/train/countdown_level5_corrupt_30k" --train_levels 5 --test_levels 6 7 --used_size 15000 --train_size 15000 --test_size_per_level 150 --tokenizer_name "aochongoliverli/Qwen2.5-3B-countdown-level4-5-grpo-20k-1epoch" --corrupt_datafile "/mnt/home/al2644/research/projects/perturb-r/results/countdown_stage2/inject_thoughts/Qwen2.5-3B-countdown-level4-5-stage1_rl.pickle"
+    python data/format_parquet/countdown_random_thought.py --local_dir "./data/train/countdown_level5_random_thought_only_15k" --test_levels 6 7 --used_size 15000 --test_size_per_level 150 --tokenizer_name "aochongoliverli/Qwen2.5-3B-countdown-level4-5-grpo-20k-1epoch" --corrupt_datafile "/mnt/home/al2644/research/projects/perturb-r/results/countdown_stage2_generate/inject_thoughts/Qwen2.5-3B-countdown-level4-5-stage1_rl.pickle"
     """
     parser = argparse.ArgumentParser(description='Process datasets for Countdown training')
     parser.add_argument('--local_dir', required=True, help='Local directory to save processed datasets')
     parser.add_argument('--corrupt_datafile', required=True, help='Corrupt data file')
     parser.add_argument('--tokenizer_name', required=True, help='Tokenize name')
-    parser.add_argument('--train_levels', nargs='+', required=True, help='Levels to process')
-    parser.add_argument('--test_levels', nargs='+', required=True, help='Levels to process')
-    parser.add_argument('--used_size', type=int, required=True, default=5000)
-    parser.add_argument('--train_size', type=int, required=True, default=20000)
-    parser.add_argument('--test_size_per_level', type=int, required=True, default=100)
+    parser.add_argument('--train_levels', nargs='+', default=[], help='Levels to process')
+    parser.add_argument('--test_levels', nargs='+', default=[], help='Levels to process')
+    parser.add_argument('--used_size', type=int, default=5000)
+    parser.add_argument('--train_size', type=int, default=20000)
+    parser.add_argument('--test_size_per_level', type=int, default=100)
 
     args = parser.parse_args()
     local_dir = args.local_dir
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     train_size = args.train_size
     test_size_per_level = args.test_size_per_level
 
-    train_size_per_level = train_size // len(train_levels)
+    train_size_per_level = train_size // len(train_levels) if train_levels else 0
 
     # Load corrupt data
     corrupt_df = pd.read_pickle(corrupt_datafile)
@@ -123,7 +123,7 @@ if __name__ == '__main__':
         dataset = dataset.add_column('level', [level] * len(dataset))
         test_dataset.append(dataset)
 
-    train_dataset = concatenate_datasets(train_dataset)
+    train_dataset = concatenate_datasets(train_dataset) if train_levels else None
     test_dataset = concatenate_datasets(test_dataset)
 
     remove_columns = ['solution']
@@ -137,13 +137,13 @@ if __name__ == '__main__':
         num_proc=10
     )
 
-    train_data = train_dataset.map(make_map_fn('train'), with_indices=True, num_proc=10).remove_columns(remove_columns)
+    train_data = train_dataset.map(make_map_fn('train'), with_indices=True, num_proc=10).remove_columns(remove_columns) if train_levels else None
     test_data = test_dataset.map(make_map_fn('test'), with_indices=True, num_proc=10).remove_columns(remove_columns)
 
     train_df = pd.DataFrame(train_data)
     corrupt_df = pd.DataFrame(corrupt_data)
     
-    train_df = pd.concat([train_df, corrupt_df], ignore_index=True)
+    train_df = pd.concat([train_df, corrupt_df], ignore_index=True) if train_levels else corrupt_df
     test_df = pd.DataFrame(test_data)
 
         # Save training dataset
