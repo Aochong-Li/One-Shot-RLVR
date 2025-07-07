@@ -694,5 +694,19 @@
       "user_tag": "user",
       "assistant_tag": "assistant"
     }
+  },
+  "DeepMath-level1-4-14k-sft-stage0": {
+    "hf_hub_url": "aochongoliverli/DeepMath-level1-4-14k-sft-stage0", 
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
   }
 }

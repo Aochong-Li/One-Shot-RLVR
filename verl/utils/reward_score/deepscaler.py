@@ -61,6 +61,8 @@ Explanation: These are different numbers and cannot be equivalent.
 """
 
 from verl.utils.reward_score.utils.utils import extract_answer, grade_answer_sympy, grade_answer_mathd
+from math_verify import parse, verify
+
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None, use_think=False):
     
@@ -91,10 +93,15 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, use_
     
     if not processed_ground_truths:
         return 0.
-        
+    
+    # use math-verify package to check
+    gold = parse(solution_str)
+    answer = parse(ground_truth)
+    math_verify_result = verify(gold, answer)
+
     for ground_truth in processed_ground_truths:
         is_correct = grade_answer_mathd(model_answer, ground_truth) or grade_answer_sympy(model_answer, ground_truth)
-        if is_correct:
+        if is_correct or math_verify_result:
             return 1.
     
     return 0.

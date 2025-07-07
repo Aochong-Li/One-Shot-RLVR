@@ -23,7 +23,14 @@ import torch
 from collections import defaultdict
 
 import verl.utils.torch_functional as verl_F
+from verl import DataProto
+from verl.utils.model import compute_position_id_with_mask
+import verl.utils.torch_functional as verl_F
 
+from transformers import AutoTokenizer
+import random
+import math
+from tensordict import TensorDict
 
 class AdaptiveKLController:
     """

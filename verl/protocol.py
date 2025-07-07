@@ -37,6 +37,13 @@ try:
 except:
     pass
 
+def dataprotoitem_to_dataproto(item: 'DataProtoItem'):
+    """Convert a DataProtoItem to a DataProto object"""
+    return DataProto.from_dict(
+        tensors=item.batch,  # TensorDict is already in correct format
+        non_tensors=item.non_tensor_batch,  # Dict is already in correct format 
+        meta_info=item.meta_info
+    )
 
 def pad_dataproto_to_divisor(data: 'DataProto', size_divisor: int):
     """Pad a DataProto to size divisible by size_divisor
