@@ -4,25 +4,25 @@ set -x
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
-export BASE_MODEL="aochongoliverli/Qwen2.5-1.5B-DeepMath-level1-4-14k-sft-stage0-5epoch"
+export BASE_MODEL="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
 N_GPUS=8
-ROLLOUT_N=6
-MAX_LENGTH=16384
+ROLLOUT_N=4
+MAX_LENGTH=8192
 TENSOR_MODEL_PARALLEL_SIZE=1
 TOTAL_EPOCHS=5
 SAVE_STEPS=50
 EVAL_STEPS=10
 
-EXPERIMENT_NAME="Qwen2.5-1.5B-DeepMath-stage1-grpo-level5-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length"
+EXPERIMENT_NAME="R1-Distill-Qwen-1.5B-DeepMath-stage1-grpo-level3-4-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length"
 
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
- data.train_files=data/train/deepmath_level5/train.parquet \
- data.val_files=data/test/deepmath_level6-7/test.parquet \
+ data.train_files=data/train/deepmath_level3-4/train.parquet \
+ data.val_files=data/test/deepmath_level8-9/test.parquet \
  data.train_batch_size=128 \
  data.val_batch_size=1024 \
- data.max_prompt_length=256 \
+ data.max_prompt_length=512 \
  data.max_response_length=$MAX_LENGTH \
  reward_model.reward_manager='naive' \
  actor_rollout_ref.model.path=$BASE_MODEL \

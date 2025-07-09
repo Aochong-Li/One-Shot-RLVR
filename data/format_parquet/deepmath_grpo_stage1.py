@@ -13,10 +13,10 @@ from transformers import AutoTokenizer
 
 import pandas as pd
 # from verl.utils.hdfs_io import copy, makedirs
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset, concatenate_datasets, load_from_disk
 from multiprocessing import Pool
 
-def make_map_fn(split: str):
+def make_map_fn(split: str, source:str=None):
     def process_fn(example: Dict[str, Any], idx: int) -> Optional[Dict[str, Any]]:
         question = example.pop('question')
         answer = example.pop('final_answer')
@@ -24,7 +24,7 @@ def make_map_fn(split: str):
         topic = example.pop('topic')
 
         data = {
-            "data_source": 'deepmath',
+            "data_source": source if source else f'deepmath-level{difficulty}',
             "prompt": [{
                 "role": "user",
                 "content": question
@@ -37,12 +37,37 @@ def make_map_fn(split: str):
             "extra_info": {
                 'split': split,
                 'index': idx,
-                'difficulty': difficulty,
+                'difficulty': str(difficulty),
                 'topic': topic
             }
         }
         return data
     return process_fn
+
+def process_aime_fn(example: Dict[str, Any], idx: int):
+    problem = example.pop('problem')
+    solution = example.pop('solution')
+    source = example.pop('source')
+    
+    data = {
+        "data_source": source,
+        "prompt": [{
+            "role": "user",
+            "content": problem
+        }],
+        "ability": "math",
+        "reward_model": {
+            "style": "rule",
+            "ground_truth": solution
+        },
+        "extra_info": {
+            'split': 'test',
+            'index': idx,
+            'difficulty': source,
+            'topic': 'aime'
+        }
+    }
+    return data
 
 def remove_long_prompt(prompt, tokenizer, max_length):
     tokenized = tokenizer.apply_chat_template(
@@ -58,15 +83,23 @@ def remove_long_prompt(prompt, tokenizer, max_length):
 if __name__ == '__main__':
     """
     Example usage:
-    python data/format_parquet/deepmath_grpo.py --train_dir "./data/train/deepmath_level3-4" --test_dir "./data/test/deepmath_level6-7" --train_levels 3.0 3.5 4.0 4.5 --test_levels 6.0 6.5 7.0 7.5
+    python data/format_parquet/deepmath_grpo_stage1.py \
+        --train_dir "./data/train/deepmath_level3-4" \
+        --test_dir "./data/test/deepmath_level6-9" \
+        --train_levels 3.0 3.5 4.0 4.5 \
+        --test_levels 6.5 7.0 7.5 8.0 8.5 9.0 \
+        --aime_dir ../perturb-r/data/aime2425 \
+        --tokenizer_name deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B \
+        --prompt_max_length 512
     """
     parser = argparse.ArgumentParser(description='Process datasets for RL Training on DeepMath')
     parser.add_argument('--train_levels', nargs='+', default=[5, 6, 7, 8, 9], type=float)
     parser.add_argument('--test_levels', nargs='+', default=[6,7], type=float)
+    parser.add_argument('--aime_dir', default=None)
     parser.add_argument('--train_dir', required=True, default='./data/train', help='Local directory to save processed datasets')
     parser.add_argument('--test_dir', required=True, default='./data/test', help='Local directory to save processed datasets')
     parser.add_argument('--tokenizer_name', default='Qwen/Qwen2.5-1.5B', help='Tokenizer name')
-    parser.add_argument('--prompt_max_length', default=512, help='Max length')
+    parser.add_argument('--prompt_max_length', type=int, default=512, help='Max length')
     
     args = parser.parse_args()
     train_dir = args.train_dir
@@ -75,8 +108,8 @@ if __name__ == '__main__':
     test_levels = args.test_levels
     tokenizer_name = args.tokenizer_name
     prompt_max_length = args.prompt_max_length
+    aime_dir = args.aime_dir
 
-    import pdb; pdb.set_trace()
     os.makedirs(train_dir, exist_ok=True)
     os.makedirs(test_dir, exist_ok=True)
 
@@ -90,8 +123,14 @@ if __name__ == '__main__':
     test_dataset = test_dataset.filter(lambda x: remove_long_prompt(x["question"], tokenizer, prompt_max_length), num_proc=4)
     
     remove_columns = ['r1_solution_1', 'r1_solution_2', 'r1_solution_3', 'subtopic']
-    train_data = train_dataset.map(make_map_fn('train'), with_indices=True, num_proc=4, remove_columns=remove_columns)
+    train_data = train_dataset.map(make_map_fn('train', source='deepmath'), with_indices=True,  num_proc=4, remove_columns=remove_columns)
     test_data = test_dataset.map(make_map_fn('test'), with_indices=True, num_proc=4, remove_columns=remove_columns)
+
+    if aime_dir:
+        import pdb; pdb.set_trace()
+        aime_dataset = load_from_disk(aime_dir)['test']
+        aime_dataset = aime_dataset.map(process_aime_fn, with_indices=True, num_proc=4)
+        test_data = concatenate_datasets([test_data, aime_dataset])
 
     # Save training dataset
     print("train data size:", len(train_data))

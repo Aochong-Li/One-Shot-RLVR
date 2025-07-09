@@ -39,7 +39,7 @@ def push_dataset_to_hf(dataset_name: str, local_dataset_dir: str, username: str=
 if __name__ == "__main__":
     """
     Example usage:
-    python push_to_hf/push.py --model_name "SkyMath_8k_Qwen2.5_1.5B_sft_checkpoints64" --local_checkpoint_dir "/share/goyal/lio/reasoning/model/sky_math_8k/sft/Qwen2.5_Math_1.5B_sky_math8k_max_length_4096_bsz_32_epochs_10/checkpoint-64"
+    python push_to_hf/push.py --model_name "R1-Distill-Qwen-1.5B-DeepMath-level3-4-stage1-grpo-5epochs-4rollouts-8192max-length" --local_checkpoint_dir "/mnt/home/al2644/research/projects/rlvr/outputs/deepmath/R1-Distill-Qwen-1.5B-DeepMath-stage1-grpo-level3-4-5epochs-4rollouts-8192max-length/global_step_475/actor"
     python push_to_hf/push.py --dataset_name "deepmath_4096" --local_dataset_dir "/share/goyal/lio/reasoning/data/deepmath_4096"
     """
     parser = argparse.ArgumentParser()

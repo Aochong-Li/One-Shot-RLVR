@@ -1007,7 +1007,8 @@ class RayPPOTrainer(object):
         logger = Tracking(project_name=self.config.trainer.project_name,
                           experiment_name=self.config.trainer.experiment_name,
                           default_backend=self.config.trainer.logger,
-                          config=OmegaConf.to_container(self.config, resolve=True))
+                          config=OmegaConf.to_container(self.config, resolve=True),
+                          wandb_run_id=self.config.trainer.wandb_run_id)
 
         self.global_steps = 0
         self._load_checkpoint()
@@ -1339,7 +1340,8 @@ class RayPPOTrainer(object):
         logger = Tracking(project_name=self.config.trainer.project_name,
                           experiment_name=self.config.trainer.experiment_name,
                           default_backend=self.config.trainer.logger,
-                          config=OmegaConf.to_container(self.config, resolve=True))
+                          config=OmegaConf.to_container(self.config, resolve=True),
+                          wandb_run_id=self.config.trainer.wandb_run_id)
 
         self.global_steps = 0
         self._load_checkpoint()
