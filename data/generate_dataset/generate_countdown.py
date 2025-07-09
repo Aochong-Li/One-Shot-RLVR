@@ -15,7 +15,6 @@ def generate_countdown_dataset(
     operations: Sequence[str] = ('+', '-', '*', '/', '//', '%'),
     mandatory_operations: Sequence[str] = (),
     seed: int = 42,
-    prior_nums: set[Tuple[int, ...]] = set()
 ) -> Dataset:
     """
     Return a 🤗 Datasets object with `num_samples` rows, guaranteed solvable.
@@ -102,7 +101,7 @@ def generate_countdown_dataset(
 
 if __name__ == "__main__":
     """
-    python data/generate_dataset/generate_countdown.py --levels 6
+    python data/generate_dataset/generate_countdown.py --levels 15
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--levels", type=int, nargs="+", required=True)
@@ -113,18 +112,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     hf_username = "aochongoliverli"
-    import pdb; pdb.set_trace()
 
     for level in args.levels:
         if not args.overwrite:
-            try:
-                prior_dataset = load_dataset(f"{hf_username}/countdown_level_{level}")
-                prior_nums = set(tuple(row['nums']) for row in prior_dataset['train']).union(set(tuple(row['nums']) for row in prior_dataset['test']))
-            except:
-                prior_nums = set()
-                print(f"This is the first time generating the dataset for level {level}")
-        else:
-            prior_nums = set()
+            print(f"Skipping level {level} because it already exists")
+            continue
 
         if args.train_size + args.test_size > 0:
             dataset = generate_countdown_dataset(args.train_size + args.test_size,
@@ -133,16 +125,9 @@ if __name__ == "__main__":
                                                 min_number=1,
                                                 max_number=100,
                                                 operations=['+', '-', '*', '/'],
-                                                prior_nums=prior_nums
                                                 )
             dataset = dataset.train_test_split(test_size=args.test_size)
-            if prior_nums:
-                for split, data in prior_dataset.items():
-                    if split in dataset:
-                        dataset[split] = concatenate_datasets([data, dataset[split]])
-                    else:
-                        dataset[split] = data
-                    
+            
         if args.ood_test_size > 0:
             ood_dataset = generate_countdown_dataset(args.ood_test_size,
                                                     num_operands=level,
