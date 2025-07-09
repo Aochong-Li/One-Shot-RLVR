@@ -102,26 +102,29 @@ def generate_countdown_dataset(
 
 if __name__ == "__main__":
     """
-    python data/generate_dataset/generate_countdown.py --levels 5 6 --train_size 100000 --test_size 5000 --ood_test_size 0
+    python data/generate_dataset/generate_countdown.py --levels 6
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--levels", type=int, nargs="+", required=True)
     parser.add_argument("--train_size", type=int, default=45000)
     parser.add_argument("--test_size", type=int, default=5000)
     parser.add_argument("--ood_test_size", type=int, default=5000)
-    parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--overwrite", default=True, action="store_true")
     args = parser.parse_args()
     
     hf_username = "aochongoliverli"
+    import pdb; pdb.set_trace()
 
     for level in args.levels:
         if not args.overwrite:
             try:
-                prior_dataset = load_dataset(f"{hf_username}/countdown_level_{args.levels[0]}")
+                prior_dataset = load_dataset(f"{hf_username}/countdown_level_{level}")
                 prior_nums = set(tuple(row['nums']) for row in prior_dataset['train']).union(set(tuple(row['nums']) for row in prior_dataset['test']))
             except:
                 prior_nums = set()
                 print(f"This is the first time generating the dataset for level {level}")
+        else:
+            prior_nums = set()
 
         if args.train_size + args.test_size > 0:
             dataset = generate_countdown_dataset(args.train_size + args.test_size,
