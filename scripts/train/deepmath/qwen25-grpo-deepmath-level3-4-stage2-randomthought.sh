@@ -15,15 +15,15 @@ SAVE_STEPS=50
 EVAL_STEPS=10
 
 # Remember to change the folder name to load checkpoints from last
-EXPERIMENT_NAME="R1-Distill-Qwen-1.5B-DeepMath-stage2-grpo-level3-4-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length"
+EXPERIMENT_NAME="R1-Distill-Qwen-1.5B-DeepMath-stage2-randomthought-grpo-level3-4-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-length"
 
 python3 -m verl.trainer.main_ppo \
  algorithm.adv_estimator=grpo \
- data.train_files=data/train/deepmath_level3-4-stage2-post-step285-reward-lt-1.0/train.parquet \
+ data.train_files=data/train/deepmath_level3-4-stage2-post-step285-reward-lt-1.0-randomthought/train.parquet \
  data.val_files=data/test/deepmath_level6-9/test.parquet \
  data.train_batch_size=128 \
  data.val_batch_size=256 \
- data.max_prompt_length=512 \
+ data.max_prompt_length=2560 \
  data.max_response_length=$MAX_LENGTH \
  reward_model.reward_manager='naive' \
  actor_rollout_ref.model.path=$BASE_MODEL \

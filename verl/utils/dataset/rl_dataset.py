@@ -136,8 +136,8 @@ class RLHFDataset(Dataset):
         row_dict = self.dataframe.iloc[item].to_dict()
 
         chat = row_dict.pop(self.prompt_key)
-
-        prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
+        has_assistant_message = any(message.get("role") == "assistant" for message in chat)
+        prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=not has_assistant_message, tokenize=False).removesuffix(self.tokenizer.eos_token)
 
         input_ids, attention_mask = verl_F.tokenize_and_postprocess_data(prompt=prompt_with_chat_template,
                                                                          tokenizer=self.tokenizer,
