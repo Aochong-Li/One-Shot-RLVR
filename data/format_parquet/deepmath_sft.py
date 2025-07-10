@@ -8,8 +8,11 @@ def process_sft_dataset(train_dataset_name_or_path: str,
                         min_level: int,
                         max_level: int,
                         dataset_size = None,
+                        keep_all_rollouts = True,
                         **kwargs
                         ):
+    import pdb; pdb.set_trace()
+    
     dataset = load_dataset(train_dataset_name_or_path)["train"]
     dataset = dataset.filter(lambda x: x['difficulty'] > min_level and x['difficulty'] < max_level, num_proc = 5)
     
@@ -24,18 +27,32 @@ def process_sft_dataset(train_dataset_name_or_path: str,
     def format_dataset(row):
         problem = row['question']
         sol1, sol2, sol3 = row['r1_solution_1'], row['r1_solution_2'], row['r1_solution_3']
-        response = random.choice([sol1, sol2, sol3])
-        if "<think>" not in response:
-            response = "<think>\n" + response
+        solutions = [sol1, sol2, sol3]
+        
+        if not keep_all_rollouts:
+            response = random.choice(solutions)
+            if "<think>" not in response:
+                response = "<think>\n" + response
 
-        conversations = [
-            {"role": "user", "content": problem},
-            {"role": "assistant", "content": response}
-        ]
-        return conversations
+            conversations = [
+                {"role": "user", "content": problem},
+                {"role": "assistant", "content": response}
+            ]
+            return conversations
+        else:
+            conversations = []
+            for solution in solutions:
+                if "<think>" not in solution:
+                    solution = "<think>\n" + solution
+                conversations.append([{"role": "user", "content": problem}, {"role": "assistant", "content": solution}])
+            return conversations
 
     train_df = train_dataset.to_pandas()
     train_df['conversations'] = train_df.apply(format_dataset, axis=1)
+    
+    if keep_all_rollouts:
+        train_df = train_df.explode("conversations")
+
     train_dataset = Dataset.from_pandas(train_df)
     train_dataset = train_dataset.remove_columns(["r1_solution_1", "r1_solution_2", "r1_solution_3"])
     train_dataset.push_to_hub(hf_dataset_name, private=False)
@@ -43,7 +60,8 @@ def process_sft_dataset(train_dataset_name_or_path: str,
 if __name__ == "__main__":
     process_sft_dataset(
         train_dataset_name_or_path="aochongoliverli/DeepMath-103K",
-        hf_dataset_name="aochongoliverli/DeepMath-level1-4-14k-sft-stage0",
+        hf_dataset_name="aochongoliverli/DeepMath-level1-5-117k-all_rollouts-sft",
         min_level=0,
-        max_level=5,
+        max_level=6,
+        keep_all_rollouts=True,
     )
