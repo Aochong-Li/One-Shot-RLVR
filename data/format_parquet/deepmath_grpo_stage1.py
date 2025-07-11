@@ -87,9 +87,9 @@ if __name__ == '__main__':
         --train_dir "./data/train/deepmath_level3-4" \
         --test_dir "./data/test/deepmath_level6-9" \
         --train_levels 3.0 3.5 4.0 4.5 \
-        --test_levels 6.5 7.0 7.5 8.0 8.5 9.0 \
-        --aime_dir ../perturb-r/data/aime2425 \
-        --tokenizer_name deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B \
+        --test_levels 6.0 7.0 8.0 \
+        --test_size_per_level 100 \
+        --tokenizer_name Qwen/Qwen2.5-1.5B \
         --prompt_max_length 512
     """
     parser = argparse.ArgumentParser(description='Process datasets for RL Training on DeepMath')
@@ -98,14 +98,17 @@ if __name__ == '__main__':
     parser.add_argument('--aime_dir', default=None)
     parser.add_argument('--train_dir', required=True, default='./data/train', help='Local directory to save processed datasets')
     parser.add_argument('--test_dir', required=True, default='./data/test', help='Local directory to save processed datasets')
+    parser.add_argument('--test_size_per_level', type=int, default=200, help='Test size per level')
     parser.add_argument('--tokenizer_name', default='Qwen/Qwen2.5-1.5B', help='Tokenizer name')
     parser.add_argument('--prompt_max_length', type=int, default=512, help='Max length')
+    import pdb; pdb.set_trace()
     
     args = parser.parse_args()
     train_dir = args.train_dir
     test_dir = args.test_dir
     train_levels = args.train_levels
     test_levels = args.test_levels
+    test_size_per_level = args.test_size_per_level
     tokenizer_name = args.tokenizer_name
     prompt_max_length = args.prompt_max_length
     aime_dir = args.aime_dir
@@ -120,24 +123,27 @@ if __name__ == '__main__':
     # length filtering
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     train_dataset = train_dataset.filter(lambda x: remove_long_prompt(x["question"], tokenizer, prompt_max_length), num_proc=4)
+    train_dataset = train_dataset.filter(lambda x: x["final_answer"].lower() not in ["true", "false", "yes", "no", 'a', 'b', 'c', 'd', 'e'])
     test_dataset = test_dataset.filter(lambda x: remove_long_prompt(x["question"], tokenizer, prompt_max_length), num_proc=4)
-    
+    test_dataset = test_dataset.filter(lambda x: x["final_answer"].lower() not in ["true", "false", "yes", "no", 'a', 'b', 'c', 'd', 'e'])
+
     remove_columns = ['r1_solution_1', 'r1_solution_2', 'r1_solution_3', 'subtopic']
     train_data = train_dataset.map(make_map_fn('train', source='deepmath'), with_indices=True,  num_proc=4, remove_columns=remove_columns)
     test_data = test_dataset.map(make_map_fn('test'), with_indices=True, num_proc=4, remove_columns=remove_columns)
 
     if aime_dir:
-        import pdb; pdb.set_trace()
         aime_dataset = load_from_disk(aime_dir)['test']
         aime_dataset = aime_dataset.map(process_aime_fn, with_indices=True, num_proc=4)
         test_data = concatenate_datasets([test_data, aime_dataset])
 
     # Save training dataset
-    print("train data size:", len(train_data))
     train_df = pd.DataFrame(train_data)    
+    print("train data size:", len(train_df))
     train_df.to_parquet(os.path.join(train_dir, 'train.parquet'))
 
     # Save test dataset
-    print("test data size:", len(test_data))
     test_df = pd.DataFrame(test_data)
+    test_df = test_df.groupby("data_source").apply(lambda x: x.sample(n=test_size_per_level, random_state=42)).reset_index(drop=True)
+
+    print("test data size:", len(test_df))
     test_df.to_parquet(os.path.join(test_dir, 'test.parquet'))

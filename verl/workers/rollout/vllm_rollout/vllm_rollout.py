@@ -98,7 +98,7 @@ class vLLMRollout(BaseRollout):
             enforce_eager=config.enforce_eager,
             gpu_memory_utilization=config.gpu_memory_utilization,
             skip_tokenizer_init=False,
-            max_model_len=config.prompt_length + config.response_length,
+            max_model_len=config.prompt_length + max(config.response_length, config.val_response_length), # HACK max of rollout response length and validation response length
             load_format=config.load_format,
             disable_log_stats=config.disable_log_stats,
             max_num_batched_tokens=max_num_batched_tokens,
@@ -175,6 +175,11 @@ class vLLMRollout(BaseRollout):
                 'temperature': 0,
                 'n': 1  # if greedy, only 1 response
             }
+        else:
+            kwargs = {}
+        
+        if prompts.meta_info.get('override_max_tokens', None) is not None:
+            kwargs['max_tokens'] = prompts.meta_info['override_max_tokens']
 
         # users can customize different sampling_params at different run
         with self.update_sampling_params(**kwargs):

@@ -149,7 +149,7 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
                                                                       lam=lam)
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
-    elif adv_estimator == 'grpo':
+    elif adv_estimator == 'grpo' or adv_estimator == 'dapo':
         token_level_rewards = data.batch['token_level_rewards']
         index = data.non_tensor_batch['uid']
         responses = data.batch['responses']
@@ -158,7 +158,8 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
         response_mask = attention_mask[:, -response_length:]
         advantages, returns = core_algos.compute_grpo_outcome_advantage(token_level_rewards=token_level_rewards,
                                                                         eos_mask=response_mask,
-                                                                        index=index)
+                                                                        index=index,
+                                                                        norm_adv_by_std_in_grpo=adv_estimator == 'grpo')
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
     elif adv_estimator == 'reinforce_plus_plus':
@@ -384,7 +385,7 @@ class RayPPOTrainer(object):
 
         if self.config.algorithm.adv_estimator == 'gae':
             self.use_critic = True
-        elif self.config.algorithm.adv_estimator == 'grpo':
+        elif self.config.algorithm.adv_estimator == 'grpo' or self.config.algorithm.adv_estimator == 'dapo':
             self.use_critic = False
         elif self.config.algorithm.adv_estimator == 'reinforce_plus_plus':
             self.use_critic = False
@@ -706,6 +707,7 @@ class RayPPOTrainer(object):
                 'recompute_log_prob': False,
                 'do_sample': False,
                 'validate': True,
+                'override_max_tokens': self.config.actor_rollout_ref.rollout.val_response_length
             }
 
             # pad to be divisible by dp_size

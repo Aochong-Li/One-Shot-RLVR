@@ -228,7 +228,7 @@ class DataParallelPPOActor(BasePPOActor):
                 micro_batches = mini_batch.split(self.config.ppo_micro_batch_size_per_gpu)
 
             self.actor_optimizer.zero_grad()
-
+            
             for data in micro_batches:
                 data = data.cuda()  # actor device is cpu when using offload
                 responses = data['responses']
@@ -239,6 +239,13 @@ class DataParallelPPOActor(BasePPOActor):
                 advantages = data['advantages']
 
                 clip_ratio = self.config.clip_ratio
+                # HACK: we need to get clip_ratio_low, clip_ratio_high, clip_ratio_c, loss_agg_mode from the config
+                clip_ratio_low = self.config.get('clip_ratio_low', clip_ratio)
+                clip_ratio_high = self.config.get('clip_ratio_high', clip_ratio)
+                clip_ratio_c = self.config.get('clip_ratio_c', 3.0)
+                loss_agg_mode = self.config.get('loss_agg_mode', 'token-mean')
+                # END OF HACK
+
                 entropy_coeff = self.config.entropy_coeff
                 # pg_loss_coeff is 1.0 if config has no pg_loss_coeff
                 pg_loss_coeff = self.config.get('pg_loss_coeff', 1.0)
@@ -250,8 +257,12 @@ class DataParallelPPOActor(BasePPOActor):
                 pg_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(old_log_prob=old_log_prob,
                                                                               log_prob=log_prob,
                                                                               advantages=advantages,
-                                                                              eos_mask=response_mask,
-                                                                              cliprange=clip_ratio)
+                                                                              response_mask=response_mask,
+                                                                              cliprange=clip_ratio,
+                                                                              cliprange_low=clip_ratio_low,
+                                                                              cliprange_high=clip_ratio_high,
+                                                                              clip_ratio_c=clip_ratio_c,
+                                                                              loss_agg_mode=loss_agg_mode)
                 # compute entropy loss from entropy
                 entropy_loss = verl_F.masked_mean(entropy, response_mask)
 
