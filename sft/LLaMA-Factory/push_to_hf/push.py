@@ -19,13 +19,13 @@ def push_model_to_hf(model_name: str, local_checkpoint_dir: str, username: str=U
 
     tokenizer = AutoTokenizer.from_pretrained(local_checkpoint_dir)
     tokenizer.name_or_path = repo_id
-    tokenizer.save_pretrained(repo_id)
+    tokenizer.save_pretrained(local_checkpoint_dir)
 
     if new_system_prompt is not None:
         old_template = tokenizer.chat_template
         new_template = old_template.replace("You are a helpful assistant.", new_system_prompt)
         tokenizer.chat_template = new_template
-        tokenizer.save_pretrained(repo_id)
+        tokenizer.save_pretrained(local_checkpoint_dir)
     
     # Upload folder to the repository with progress tracking
     upload_folder(

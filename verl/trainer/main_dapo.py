@@ -17,7 +17,7 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 from verl.trainer.ppo.dapo_trainer import RayDAPOTrainer
 import ray
 import hydra
-from verl.utils.reward_score import deepscaler
+from verl.utils.reward_score import deepmath
 from verl.workers.reward_manager import get_reward_manager_cls
 
 @hydra.main(config_path='config', config_name='dapo_trainer', version_base=None)
@@ -26,14 +26,8 @@ def main(config):
 
 
 def run_dapo(config, compute_score=None):
-    if not ray.is_initialized():
-        # this is for local ray cluster
-        ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
+    main_task(config)
 
-    ray.get(main_task.remote(config))
-
-
-@ray.remote(num_cpus=1)  # please make sure main_task is not scheduled on head
 def main_task(config, compute_score=None):
     from verl.utils.fs import copy_local_path_from_hdfs
     # print initial config
@@ -98,13 +92,13 @@ def main_task(config, compute_score=None):
             raise NotImplementedError
         role_worker_mapping[Role.RewardModel] = ray.remote(RewardModelWorker)
         mapping[Role.RewardModel] = global_pool_id
-    
+
     reward_manager_name = config.reward_model.get("reward_manager", "naive")
     reward_manager_cls = get_reward_manager_cls(reward_manager_name)
 
     if config.actor_rollout_ref.model.path.strip().startswith("Qwen") or 'llama' in config.actor_rollout_ref.model.path.lower() or config.actor_rollout_ref.model.use_think == False:
         print("\nQwen or LLAMA---------------------------------\n")
-        compute_score = deepscaler.compute_score
+        compute_score = deepmath.compute_score
         
     reward_fn = reward_manager_cls(
             tokenizer=tokenizer,
@@ -120,7 +114,7 @@ def main_task(config, compute_score=None):
     val_reward_fn = val_reward_manager_cls(tokenizer=tokenizer, num_examine=1, compute_score=compute_score)
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
-
+    
     trainer = RayDAPOTrainer(config=config,
                             tokenizer=tokenizer,
                             role_worker_mapping=role_worker_mapping,

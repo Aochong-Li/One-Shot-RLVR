@@ -23,7 +23,7 @@ def push_model_checkpoints (project_name: str, run_name: str):
 if __name__ == "__main__":
     """
     Example Usage:
-    python3 push_to_hf/experiments.py --project_name verl_rlvr --run_name Qwen2.5-Math-1.5B-deepmath-g2-beta
+    python3 push_to_hf/experiments.py --project_name deepmath --run_name Qwen2.5-1.5B-DeepMath-stage1-grpo-level5-4epochs-4rollouts-8192max-length
     """
     args = argparse.ArgumentParser()
     args.add_argument("--project_name", type=str, required=True)

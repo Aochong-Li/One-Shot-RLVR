@@ -84,11 +84,11 @@ if __name__ == '__main__':
     """
     Example usage:
     python data/format_parquet/deepmath_grpo_stage1.py \
-        --train_dir "./data/train/deepmath_level3-4" \
-        --test_dir "./data/test/deepmath_level6-9" \
-        --train_levels 3.0 3.5 4.0 4.5 \
-        --test_levels 6.0 7.0 8.0 \
-        --test_size_per_level 100 \
+        --train_dir "./data/train/deepmath_level5" \
+        --test_dir "./data/test/deepmath_level5-9" \
+        --train_levels 5.0 5.5 \
+        --test_levels 5.0 6.0 7.0 8.0 9.0 \
+        --test_size_per_level 50 \
         --tokenizer_name Qwen/Qwen2.5-1.5B \
         --prompt_max_length 512
     """

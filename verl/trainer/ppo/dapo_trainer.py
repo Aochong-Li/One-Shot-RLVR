@@ -65,9 +65,14 @@ def _timer(name: str, timing_raw: Dict[str, float]):
 class RayDAPOTrainer(RayPPOTrainer):
     def fit_collect(self):
         """
-        The training loop of PPO with reasoning trace collection.
-        The driver process only need to call the compute functions of the worker group through RPC to construct the PPO dataflow.
+        The training loop of DAPO with reasoning trace collection.
+        The driver process only need to call the compute functions of the worker group through RPC to construct the DAPO dataflow.
         The light-weight advantage computation is done on the driver process.
+
+        Here are the main differences from the PPO trainer:
+        1. Clip Higher: enable clip_high and clip_low in the actor update
+        2. Overlong Buffer: enable overlong buffer in RewardManager
+        3. Token-level Policy Gradient Loss: enable token-level policy gradient loss in the actor update
         """
         from verl.utils.tracking import Tracking
         from omegaconf import OmegaConf
@@ -114,22 +119,6 @@ class RayDAPOTrainer(RayPPOTrainer):
                     with _timer('gen', timing_raw):
                         gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
 
-                    if self.config.algorithm.adv_estimator == 'remax':
-                        with _timer('gen_max', timing_raw):
-                            gen_baseline_batch = deepcopy(gen_batch)
-                            gen_baseline_batch.meta_info['do_sample'] = False
-                            gen_baseline_output = self.actor_rollout_wg.generate_sequences(gen_baseline_batch)
-
-                            batch = batch.union(gen_baseline_output)
-                            reward_baseline_tensor, score_record = self.reward_fn(batch)
-                            reward_baseline_tensor = reward_baseline_tensor.sum(dim=-1)
-
-                            batch.pop(batch_keys=list(gen_baseline_output.batch.keys()))
-
-                            batch.batch['reward_baselines'] = reward_baseline_tensor
-
-                            del gen_baseline_batch, gen_baseline_output
-
                     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
                                                              dtype=object)
                     # repeat to align with repeated responses in rollout
@@ -171,12 +160,6 @@ class RayDAPOTrainer(RayPPOTrainer):
                         # compute scores. Support both model and function-based.
                         # We first compute the scores using reward model. Then, we call reward_fn to combine
                         # the results from reward model and rule-based results.
-                        if self.use_rm:
-                            # we first compute reward model score
-                            reward_tensor = self.rm_wg.compute_rm_score(batch)
-                            batch = batch.union(reward_tensor)
-
-                        # we combine with rule-based rm
                         reward_tensor, score_record = self.reward_fn(batch)
                         score_records.extend(score_record)
                         batch.batch['token_level_scores'] = reward_tensor
@@ -185,7 +168,7 @@ class RayDAPOTrainer(RayPPOTrainer):
                         self.update_rollout_dataset(batch, reward_tensor, score_record)
                         # END OF HACK
                         
-                        # HACK: 
+                        # HACK: s
                         # 1. Record # solve none and solve all and avg solve rate
                         # 2. remove sequences that either solve none or solve all
                         uids = batch.non_tensor_batch['uid']
