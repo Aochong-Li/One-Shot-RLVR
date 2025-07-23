@@ -1,0 +1,6 @@
+name: zero
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+prefix: /mnt/home/al2644/miniconda3/envs/zero
