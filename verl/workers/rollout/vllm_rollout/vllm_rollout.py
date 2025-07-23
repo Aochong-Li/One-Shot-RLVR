@@ -98,7 +98,7 @@ class vLLMRollout(BaseRollout):
             enforce_eager=config.enforce_eager,
             gpu_memory_utilization=config.gpu_memory_utilization,
             skip_tokenizer_init=False,
-            max_model_len=config.prompt_length + max(config.response_length, config.val_response_length), # HACK max of rollout response length and validation response length
+            max_model_len=min(tokenizer.model_max_length, 32768), # HACK avoid illegal access of memory error
             load_format=config.load_format,
             disable_log_stats=config.disable_log_stats,
             max_num_batched_tokens=max_num_batched_tokens,

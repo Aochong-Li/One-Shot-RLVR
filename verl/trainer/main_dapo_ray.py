@@ -32,7 +32,7 @@ def run_dapo(config, compute_score=None):
     ray.get(main_task.remote(config))
 
 
-@ray.remote()
+@ray.remote
 def main_task(config, compute_score=None):
     from verl.utils.fs import copy_local_path_from_hdfs
     # print initial config

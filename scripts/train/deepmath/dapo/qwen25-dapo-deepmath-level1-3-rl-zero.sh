@@ -1,29 +1,29 @@
 #!/bin/bash
 set -x
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
-export BASE_MODEL="aochongoliverli/Qwen2.5-1.5B-DeepMath-level5-grpo-initial-checkpoint"
+export BASE_MODEL="aochongoliverli/Qwen2.5-1.5B-Zero-initial-checkpoint"
 
-N_GPUS=8
+N_GPUS=4
 ROLLOUT_N=4
-EXPECTED_MAX_LENGTH=8192
+EXPECTED_MAX_LENGTH=2048
 TENSOR_MODEL_PARALLEL_SIZE=1
-TOTAL_EPOCHS=10 # Set it large enough and we can stop it early
+TOTAL_EPOCHS=50 # Set it large enough and we can stop it early
 SAVE_STEPS=50
 EVAL_STEPS=25
 
-OVERLONG_BUFFER_LEN=1024
-OVERLONG_BUFFER_PENALTY_FACTOR=1.0
+OVERLONG_BUFFER_LEN=2048
+OVERLONG_BUFFER_PENALTY_FACTOR=0.1
 MAX_LENGTH=$((EXPECTED_MAX_LENGTH + OVERLONG_BUFFER_LEN))
 
-EXPERIMENT_NAME="Qwen2.5-1.5B-deepmath-full-distill-dapo-level5-${ROLLOUT_N}rollout-${MAX_LENGTH}max-len"
+EXPERIMENT_NAME="Qwen2.5-1.5B-deepmath-level1-3-rl-zero-${ROLLOUT_N}rollout-${MAX_LENGTH}max-len"
 
 python3 -m verl.trainer.main_dapo \
  algorithm.adv_estimator=dapo \
- data.train_files=./data/train/deepmath_level5/train.parquet \
- data.val_files=./data/test/deepmath_level5-9/test.parquet \
+ data.train_files=./data/train/deepmath_level1-3/train.parquet \
+ data.val_files=./data/test/deepmath_level3-6/test.parquet \
  data.train_batch_size=128 \
  data.val_batch_size=300 \
  data.max_prompt_length=512 \
@@ -70,6 +70,4 @@ python3 -m verl.trainer.main_dapo \
  trainer.total_epochs=$TOTAL_EPOCHS \
  trainer.rejection_sample=True \
  trainer.push_to_hub=False 2>&1 | tee $CHECKPOINTS_DIR/$EXPERIMENT_NAME.log
-
-
  

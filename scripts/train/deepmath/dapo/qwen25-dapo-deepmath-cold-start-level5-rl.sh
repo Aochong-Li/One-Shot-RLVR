@@ -1,12 +1,29 @@
 #!/bin/bash
 set -x
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+# export RAY_OBJECT_STORE_MEMORY=$((8*1024*1024*1024))
+
+## Step 1:multi-node training step
+# find address using "hostname -I " find something like 10.10.10.10
+# head_ip=10.10.10.10
+
+## Step 2: Head Node
+# ray stop --force
+# ray start --head --node-ip-address=$head_ip --port=6379 \
+#           --num-gpus=4 --num-cpus=$(nproc)
+
+## Step 3: Worker Node
+# ray stop --force
+# ray start --address=$head_ip:6379 \
+#           --num-gpus=4 --num-cpus=$(nproc)
+
+## Step 4: Launch the script on head node
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
-export BASE_MODEL="aochongoliverli/Qwen2.5-1.5B-DeepMath-level5-grpo-initial-checkpoint"
+export BASE_MODEL="aochongoliverli/Qwen2.5-1.5B-DeepMath-level5-grpo-cold-start-level1-4-40k"
 
-N_GPUS=8
+N_GPUS=4
+N_NODES=2
 ROLLOUT_N=4
 EXPECTED_MAX_LENGTH=8192
 TENSOR_MODEL_PARALLEL_SIZE=1
@@ -18,9 +35,9 @@ OVERLONG_BUFFER_LEN=1024
 OVERLONG_BUFFER_PENALTY_FACTOR=1.0
 MAX_LENGTH=$((EXPECTED_MAX_LENGTH + OVERLONG_BUFFER_LEN))
 
-EXPERIMENT_NAME="Qwen2.5-1.5B-deepmath-full-distill-dapo-level5-${ROLLOUT_N}rollout-${MAX_LENGTH}max-len"
+EXPERIMENT_NAME="Qwen2.5-1.5B-deepmath-level1-4-40k-cold-start-dapo-level5-${ROLLOUT_N}rollout-${MAX_LENGTH}max-len"
 
-python3 -m verl.trainer.main_dapo \
+python3 -m verl.trainer.main_dapo_ray \
  algorithm.adv_estimator=dapo \
  data.train_files=./data/train/deepmath_level5/train.parquet \
  data.val_files=./data/test/deepmath_level5-9/test.parquet \
@@ -64,7 +81,7 @@ python3 -m verl.trainer.main_dapo \
  trainer.resume_mode='disable' \
  +trainer.val_before_train=True \
  trainer.n_gpus_per_node=$N_GPUS \
- trainer.nnodes=1 \
+ trainer.nnodes=$N_NODES \
  trainer.save_freq=$SAVE_STEPS \
  trainer.test_freq=$EVAL_STEPS \
  trainer.total_epochs=$TOTAL_EPOCHS \

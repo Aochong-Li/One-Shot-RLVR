@@ -4,6 +4,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.openmathinst_utils import extract_answer, math_equal
+from deepscaler import compute_score as deepscaler_compute_score
+from hendrycks_math import compute_score as hendrycks_math_compute_score
 
 from math_verify import verify, parse
 from typing import Union
@@ -29,11 +31,11 @@ def check_mathv_equal(
     return verify(gold, target, float_rounding, numeric_precision, strict, timeout_seconds)
 
 def compute_score(data_source, solution_str, ground_truth, extra_info, timeout_seconds:int=10) -> float:
-    if "</think>" in solution_str and "\\boxed" in solution_str:
-        # to avoid the case that boxed appears in both the thinking and the solution
-        solution_str = solution_str.split("</think>")[-1]
-    else:
+    if "\\boxed" not in solution_str:
         return 0.0
+    
+    if "</think>" in solution_str:
+        solution_str = solution_str.split("</think>")[-1]
         
     omi_pred = None
     omi_correct = False
@@ -54,7 +56,30 @@ def compute_score(data_source, solution_str, ground_truth, extra_info, timeout_s
     except Exception:
         mathv_correct = False
     
-    acc = omi_correct or mathv_correct
+    # deepscaler
+    deepscaler_correct = deepscaler_compute_score(data_source, solution_str, ground_truth, extra_info, use_think=True)
+
+    acc = omi_correct or mathv_correct or deepscaler_correct
     score = 1.0 if acc else 0.0
     
     return score
+
+if __name__ == "__main__":
+    """
+    conda activate zero
+    python utils/reward_score/deepmath.py --file_path /mnt/home/al2644/research/projects/perturb-r/results/math8k/benchmark/QwQ-32Btrain.pickle
+    """
+    import argparse
+    import pandas as pd
+    from tqdm import tqdm
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--file_path", type=str, required=True)
+    args = parser.parse_args()
+
+    df = pd.read_pickle(args.file_path)
+    import pdb; pdb.set_trace()
+
+    tqdm.pandas()
+    df["score"] = df.progress_apply(lambda x: compute_score(None, x["pred"], x["gt"], None, 10), axis=1)
+    df.to_pickle(args.file_path)

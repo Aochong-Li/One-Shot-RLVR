@@ -225,3 +225,23 @@ def strip_string(string):
     string = fix_a_slash_b(string)
 
     return string
+
+if __name__ == "__main__":
+    """
+    conda activate zero
+    python verl/utils/reward_score/hendrycks_math.py --file_path /mnt/home/al2644/research/projects/perturb-r/results/math8k/benchmark/QwQ-32Btrain.pickle
+    """
+    import argparse
+    import pandas as pd
+    from tqdm import tqdm
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--file_path", type=str, required=True)
+    args = parser.parse_args()
+
+    df = pd.read_pickle(args.file_path)
+    import pdb; pdb.set_trace()
+
+    tqdm.pandas()
+    df["math_score"] = df.progress_apply(lambda x: compute_score(x["pred"], x["gt"]), axis=1)
+    df.to_pickle(args.file_path)

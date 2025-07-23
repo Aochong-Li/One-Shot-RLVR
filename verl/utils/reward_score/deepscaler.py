@@ -59,8 +59,12 @@ Explanation: These are different numbers and cannot be equivalent.
 [[NO]]
 -----
 """
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from verl.utils.reward_score.utils.utils import extract_answer, grade_answer_sympy, grade_answer_mathd
+from utils.utils import extract_answer, grade_answer_sympy, grade_answer_mathd
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None, use_think=True):
     

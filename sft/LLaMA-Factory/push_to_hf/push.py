@@ -1,12 +1,12 @@
 from huggingface_hub import HfApi, upload_folder
 from datasets import Dataset, DatasetDict, load_from_disk
 import argparse
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 api = HfApi()
 USERNAME = "aochongoliverli"
 
-def push_model_to_hf(model_name: str, local_checkpoint_dir: str, username: str=USERNAME, new_system_prompt: str=None):
+def push_model_to_hf(model_name: str, local_checkpoint_dir: str, username: str=USERNAME, new_system_prompt: str=None, upload_folder: bool=False):
     repo_id = f"{username}/{model_name}"
     
     # Check if repo already exists
@@ -28,11 +28,16 @@ def push_model_to_hf(model_name: str, local_checkpoint_dir: str, username: str=U
         tokenizer.save_pretrained(local_checkpoint_dir)
     
     # Upload folder to the repository with progress tracking
-    upload_folder(
-        folder_path=local_checkpoint_dir,
-        repo_id=repo_id,
-        repo_type="model",
-    )
+    if upload_folder:
+        upload_folder(
+            folder_path=local_checkpoint_dir,
+            repo_id=repo_id,
+            repo_type="model",
+        )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(local_checkpoint_dir)
+        model.push_to_hub(repo_id, private=False)
+        tokenizer.push_to_hub(repo_id, private=False)
 
 def push_dataset_to_hf(dataset_name: str, local_dataset_dir: str, username: str=USERNAME):
     dataset = load_from_disk(local_dataset_dir)
@@ -47,6 +52,22 @@ def push_dataset_to_hf(dataset_name: str, local_dataset_dir: str, username: str=
     repo_id = f"{username}/{dataset_name}"
     dataset.push_to_hub(repo_id, private=False)
 
+def update_base_model_tokenizer(model_name: str, local_checkpoint_dir: str, username: str=USERNAME, replacement={}):
+    repo_id = f"{username}/{model_name}"
+    
+    model = AutoModelForCausalLM.from_pretrained(local_checkpoint_dir)
+    tokenizer = AutoTokenizer.from_pretrained(local_checkpoint_dir)
+
+    template = tokenizer.chat_template
+    for old, new in replacement.items():
+        template = template.replace(old, new)
+    tokenizer.chat_template = template
+    tokenizer.name_or_path = repo_id
+    
+
+    model.push_to_hub(repo_id, private=False)
+    tokenizer.push_to_hub(repo_id, private=False)
+
 if __name__ == "__main__":
     """
     Example usage:
@@ -57,11 +78,20 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, required=False)
     parser.add_argument("--local_checkpoint_dir", type=str, required=False)
     parser.add_argument("--dataset_name", type=str, required=False)
-    parser.add_argument("--local_dataset_dir", type=str, required=False)    
-    args = parser.parse_args()
+    parser.add_argument("--local_dataset_dir", type=str, required=False)
+    parser.add_argument("--task", type=str, required=True)
     
-    system_prompt = r"Please reason step by step and enclose your reasoning process within <think> </think> tags and put the final answer inside \\boxed{} tag."
-    if args.model_name is not None and args.local_checkpoint_dir is not None:
-        push_model_to_hf(args.model_name, args.local_checkpoint_dir, new_system_prompt=system_prompt)
-    if args.dataset_name is not None and args.local_dataset_dir is not None:
+    args = parser.parse_args()
+
+    replacement = {
+        "You are a helpful assistant.": r"Please reason step by step. Think through the problem in depth before answering. Finally, put your final answer within \\boxed{}.",
+        # "<|im_start|>assistant\\n": "<|im_start|>assistant\\n<think>"
+    }
+    if args.task == "push_local_model":
+        push_model_to_hf(args.model_name, args.local_checkpoint_dir)
+    elif args.task == "push_local_dataset":
         push_dataset_to_hf(args.dataset_name, args.local_dataset_dir)
+    elif args.task == "update_base_model_tokenizer":
+        update_base_model_tokenizer(args.model_name, args.local_checkpoint_dir, replacement=replacement)
+    else:
+        raise ValueError(f"Invalid task: {args.task}")

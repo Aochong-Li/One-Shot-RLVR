@@ -84,17 +84,17 @@ if __name__ == '__main__':
     """
     Example usage:
     python data/format_parquet/deepmath_grpo_stage1.py \
-        --train_dir "./data/train/deepmath_level5" \
-        --test_dir "./data/test/deepmath_level5-9" \
-        --train_levels 5.0 5.5 \
-        --test_levels 5.0 6.0 7.0 8.0 9.0 \
+        --train_dir "./data/train/deepmath_level1-3" \
+        --test_dir "./data/test/deepmath_level3-6" \
+        --train_levels 1.0 1.5 2.0 2.5 3.0 3.5\
+        --test_levels 3.0 4.0 5.0 6.0 \
         --test_size_per_level 50 \
         --tokenizer_name Qwen/Qwen2.5-1.5B \
         --prompt_max_length 512
     """
     parser = argparse.ArgumentParser(description='Process datasets for RL Training on DeepMath')
     parser.add_argument('--train_levels', nargs='+', default=[5, 6, 7, 8, 9], type=float)
-    parser.add_argument('--test_levels', nargs='+', default=[6,7], type=float)
+    parser.add_argument('--test_levels', nargs='+', default=[3, 4, 5], type=float)
     parser.add_argument('--aime_dir', default=None)
     parser.add_argument('--train_dir', required=True, default='./data/train', help='Local directory to save processed datasets')
     parser.add_argument('--test_dir', required=True, default='./data/test', help='Local directory to save processed datasets')

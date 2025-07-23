@@ -1,33 +1,33 @@
 #!/bin/bash
 set -x
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
-export BASE_MODEL="aochongoliverli/Qwen2.5-1.5B-DeepMath-level5-grpo-initial-checkpoint"
+export BASE_MODEL="aochongoliverli/Qwen2.5-3B-Zero-Base"
 
-N_GPUS=8
-ROLLOUT_N=4
+N_GPUS=4
+ROLLOUT_N=8
 EXPECTED_MAX_LENGTH=8192
 TENSOR_MODEL_PARALLEL_SIZE=1
-TOTAL_EPOCHS=10 # Set it large enough and we can stop it early
+TOTAL_EPOCHS=20
 SAVE_STEPS=50
 EVAL_STEPS=25
 
-OVERLONG_BUFFER_LEN=1024
-OVERLONG_BUFFER_PENALTY_FACTOR=1.0
+OVERLONG_BUFFER_LEN=0
+OVERLONG_BUFFER_PENALTY_FACTOR=0.0
 MAX_LENGTH=$((EXPECTED_MAX_LENGTH + OVERLONG_BUFFER_LEN))
 
-EXPERIMENT_NAME="Qwen2.5-1.5B-deepmath-full-distill-dapo-level5-${ROLLOUT_N}rollout-${MAX_LENGTH}max-len"
+EXPERIMENT_NAME="Qwen2.5-3B-math8k-dapo-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-len"
 
 python3 -m verl.trainer.main_dapo \
  algorithm.adv_estimator=dapo \
- data.train_files=./data/train/deepmath_level5/train.parquet \
- data.val_files=./data/test/deepmath_level5-9/test.parquet \
+ data.train_files=data/train/math8k/train.parquet \
+ data.val_files=data/train/math8k/test.parquet \
  data.train_batch_size=128 \
- data.val_batch_size=300 \
- data.max_prompt_length=512 \
- data.max_response_length=${MAX_LENGTH} \
+ data.val_batch_size=800 \
+ data.max_prompt_length=256 \
+ data.max_response_length=$MAX_LENGTH \
  reward_model.reward_manager='dapo' \
  actor_rollout_ref.model.path=$BASE_MODEL \
  actor_rollout_ref.actor.optim.lr=1e-6 \
@@ -48,20 +48,21 @@ python3 -m verl.trainer.main_dapo \
  actor_rollout_ref.rollout.temperature=1.0 \
  +actor_rollout_ref.rollout.val_temperature=0.6 \
  actor_rollout_ref.rollout.max_num_batched_tokens=32768 \
- actor_rollout_ref.rollout.gpu_memory_utilization=0.7 \
+ actor_rollout_ref.rollout.gpu_memory_utilization=0.8 \
  actor_rollout_ref.rollout.n=$ROLLOUT_N \
  +actor_rollout_ref.rollout.n_val=1 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
  algorithm.kl_ctrl.kl_coef=0.0 \
+ reward_model.overlong_buffer.enable=False \
  reward_model.overlong_buffer.len=$OVERLONG_BUFFER_LEN \
  reward_model.overlong_buffer.penalty_factor=$OVERLONG_BUFFER_PENALTY_FACTOR \
  trainer.critic_warmup=0 \
  trainer.logger=['console','wandb'] \
- trainer.project_name='deepmath'\
+ trainer.project_name='math8k'\
  trainer.username='aochongoliverli' \
  trainer.experiment_name=$EXPERIMENT_NAME \
  trainer.checkpoints_dir=$CHECKPOINTS_DIR \
- trainer.resume_mode='disable' \
+ trainer.resume_mode='auto' \
  +trainer.val_before_train=True \
  trainer.n_gpus_per_node=$N_GPUS \
  trainer.nnodes=1 \
@@ -71,5 +72,5 @@ python3 -m verl.trainer.main_dapo \
  trainer.rejection_sample=True \
  trainer.push_to_hub=False 2>&1 | tee $CHECKPOINTS_DIR/$EXPERIMENT_NAME.log
 
-
- 
+ ## Push Saved Checkpoints to Huggingface
+#  python3 push_to_hf/experiments.py --project_name countdown --run_name $EXPERIMENT_NAME

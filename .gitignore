@@ -121,6 +121,7 @@ tests/e2e/toy_examples/deepspeed/synchronous/output.txt
 *.lock
 
 # large datasets 
+data/
 data/train/
 data/test/
 
@@ -128,3 +129,4 @@ data/test/
 outputs/
 sft/LLaMA-Factory/.deepspeed_env
 sft/LLaMA-Factory/outputs/
+

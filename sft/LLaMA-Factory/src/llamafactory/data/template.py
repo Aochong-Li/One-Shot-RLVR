@@ -1069,6 +1069,17 @@ _register_template(
     replace_eos=True,
     replace_jinja_template=False,
 )
+
+_register_template(
+    name="qwen25_zero_base",
+    format_user=StringFormatter(slots=["<|im_start|>user\n{{content}}<|im_end|>\n<|im_start|>assistant\n"]),
+    format_system=StringFormatter(slots=["<|im_start|>system\n{{content}}<|im_end|>\n"]),
+    default_system="Please reason step by step. Think through the problem in depth before answering. Finally, put your final answer within \\boxed{}.",
+    stop_words=["<|endoftext|>"],
+    replace_eos=True,
+    replace_jinja_template=False,
+)
+
 _register_template(
     name="qwen25_deepmath",
     format_user=StringFormatter(slots=["<|im_start|>user\n{{content}}<|im_end|>\n"]),
