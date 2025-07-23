@@ -10,6 +10,7 @@ def push_model_checkpoints (project_name: str, run_name: str, steps: list[int]=N
         raise ValueError(f"Experiment {project_name}/{run_name} not found")
 
     global_steps = [step for step in os.listdir(local_checkpoint_dir) if "checkpoint-" in step]
+
     if steps is not None:
         global_steps = [step for step in global_steps if int(step.replace('checkpoint-', '')) in steps]
     

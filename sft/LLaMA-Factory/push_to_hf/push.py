@@ -72,6 +72,7 @@ if __name__ == "__main__":
     """
     Example usage:
     python push_to_hf/push.py --model_name "Qwen2.5-1.5B-DeepMath-level5-grpo-initial-checkpoint" --local_checkpoint_dir "outputs/deepmath/Qwen2.5-1.5B-DeepMath-level1-5-117k-sft-5epochs-5e-5lr/checkpoint-4570"
+    python push_to_hf/push.py --model_name "Qwen2.5-1.5B-DeepMath-level5-grpo-cold-start-level1-4-40k" --local_checkpoint_dir "outputs/deepmath/Qwen2.5-1.5B-DeepMath-level1-4-40k-all_rollouts-sft-stage0/checkpoint-600"
     python push_to_hf/push.py --dataset_name "deepmath_4096" --local_dataset_dir "/share/goyal/lio/reasoning/data/deepmath_4096"
     """
     parser = argparse.ArgumentParser()
