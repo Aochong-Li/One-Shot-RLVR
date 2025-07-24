@@ -67,9 +67,9 @@ def make_map_fn(split: str, source:str=None):
 if __name__ == '__main__':
     """
     python data/format_parquet/math8k_grpo.py \
-        --aime_dir /mnt/home/al2644/research/projects/perturb-r/data/aime2425 \
-        --amc_dir /mnt/home/al2644/research/projects/perturb-r/data/amc23 \
-        --math500_dir /mnt/home/al2644/research/projects/perturb-r/data/math500 \
+        --aime_dir ../perturb-r/data/aime2425 \
+        --amc_dir ../perturb-r/data/amc23 \
+        --math500_dir ../perturb-r/data/math500 \
         --sft_name_or_path aochongoliverli/math8k-sft-QwQ-32B-reasoning-traces
     """
     parser = argparse.ArgumentParser()

@@ -13,12 +13,37 @@
 
 # Instruction 
 
+### Pip install dependencies
+```bash
+conda create -n rlvr_train python=3.10
+pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+pip install -e .
+
+pip install ray vllm==0.6.3
+
+# build flash attn
+## if you have some flash_attn installed before; remove prior install
+# pip uninstall -y flash-attn flash_attn || true
+# pip cache purge
+#
+pip install -U ninja setuptools wheel packaging cmake
+git clone https://github.com/Dao-AILab/flash-attention.git
+cd flash-attention
+git checkout v2.7.4.post1
+pip install -v --no-build-isolation .
+
+# This may cause pip package conflicts. It is safe to ignore it.
+pip install math-verify
+
+pip install -r requirement.txt
+```
+
 ## Change to the directory
 ```bash
 cd rlvr
 git pull
 git checkout grpo
-conda activate zero
+conda activate rlvr_train
 ```
 
 <!-- ## Upload model weights
@@ -40,8 +65,8 @@ conda activate zero
 
  ## Verl Environment
  ```bash
- conda create -y -n zero python=3.9
- conda activate zero
+ conda create -y -n rlvr_train python=3.9
+ conda activate rlvr_train
  cd rlvr
  git pull
  pip install -r requirements.txt 
