@@ -17,6 +17,7 @@
 ```bash
 conda create -n rlvr_train python=3.10
 pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+# or 
 pip install -e .
 
 pip install ray vllm==0.6.3

@@ -6,7 +6,7 @@ import argparse
 api = HfApi()
 USERNAME = "aochongoliverli"
 
-def push_model_to_hf(model_name: str, local_checkpoint_dir: str, username: str=USERNAME, new_system_prompt: str=None, upload_folder: bool=False):
+def push_model_to_hf(model_name: str, local_checkpoint_dir: str, username: str=USERNAME, new_system_prompt: str=None, if_upload_folder: bool=False):
     repo_id = f"{username}/{model_name}"
     
     # Check if repo already exists
@@ -28,7 +28,7 @@ def push_model_to_hf(model_name: str, local_checkpoint_dir: str, username: str=U
         tokenizer.save_pretrained(local_checkpoint_dir)
     
     # Upload folder to the repository with progress tracking
-    if upload_folder:
+    if if_upload_folder:
         upload_folder(
             folder_path=local_checkpoint_dir,
             repo_id=repo_id,

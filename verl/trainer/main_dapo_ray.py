@@ -25,9 +25,15 @@ def main(config):
     run_dapo(config)
 
 def run_dapo(config, compute_score=None):
+    import pdb; pdb.set_trace()
     if not ray.is_initialized():
         # this is for local ray cluster
-        ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
+        os.environ["ENSURE_CUDA_VISIBLE_DEVICES"] = os.environ.get('CUDA_VISIBLE_DEVICES', '')
+        ray.init(
+            address="auto",
+            runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}},
+            _temp_dir='/share/goyal/ray_tmp',
+            )
 
     ray.get(main_task.remote(config))
 

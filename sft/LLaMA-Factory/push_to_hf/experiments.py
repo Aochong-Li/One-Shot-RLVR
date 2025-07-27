@@ -25,7 +25,7 @@ def push_model_checkpoints (project_name: str, run_name: str, steps: list[int]=N
 if __name__ == "__main__":
     """
     Example Usage:
-    python3 push_to_hf/experiments.py --project_name math8k --run_name Qwen2.5-3B-math8k-sft-distill-20epochs-5e-5lr --steps 50 100 150 200 250 300
+    python3 push_to_hf/experiments.py --project_name math8k --run_name Qwen2.5-3B-Zero-Base-math8k-coldstart-5epochs-5e-5lr --steps 25 50 75 100 150 200
     """
 
     args = argparse.ArgumentParser()

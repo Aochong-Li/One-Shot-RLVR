@@ -4,7 +4,7 @@ set -x
 export CUDA_VISIBLE_DEVICES=0,1
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
-export BASE_MODEL="aochongoliverli/Qwen2.5-3B-math8k-sft-distill-20epochs-5e-5lr-step150"
+export BASE_MODEL="aochongoliverli/Qwen2.5-3B-Zero-Base-math8k-coldstart-5epochs-5e-5lr-step100"
 
 N_GPUS=2
 ROLLOUT_N=8
@@ -18,14 +18,14 @@ OVERLONG_BUFFER_LEN=0
 OVERLONG_BUFFER_PENALTY_FACTOR=0.0
 MAX_LENGTH=$((EXPECTED_MAX_LENGTH + OVERLONG_BUFFER_LEN))
 
-EXPERIMENT_NAME="Qwen2.5-3B-math8k-sft-distill-150steps-dapo-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-len"
+EXPERIMENT_NAME="Qwen2.5-3B-math8k-coldstart-100steps-dapo-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-len"
 
 python3 -m verl.trainer.main_dapo \
  algorithm.adv_estimator=dapo \
- data.train_files=data/train/math8k/train.parquet \
+ data.train_files=data/train/math8k/coldstart_rl_train.parquet \
  data.val_files=data/train/math8k/test.parquet \
  data.train_batch_size=128 \
- data.val_batch_size=1024 \
+ data.val_batch_size=800 \
  data.max_prompt_length=256 \
  data.max_response_length=$MAX_LENGTH \
  reward_model.reward_manager='dapo' \
