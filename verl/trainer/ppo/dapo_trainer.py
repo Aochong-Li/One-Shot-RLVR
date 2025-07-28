@@ -87,7 +87,7 @@ class RayDAPOTrainer(RayPPOTrainer):
 
         # perform validation before training
         # currently, we only support validation using the reward_function.
-        if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
+        if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True) and not self.config.trainer.get('skip_val', False):
             val_metrics = self._validate()
             pprint(f'Initial validation metrics: {val_metrics}')
             logger.log(data=val_metrics, step=self.global_steps)
@@ -255,9 +255,11 @@ class RayDAPOTrainer(RayPPOTrainer):
                     # validate + push rollout dataset to huggingface
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \
                         self.global_steps % self.config.trainer.test_freq == 0:
-                        with _timer('testing', timing_raw):
-                            val_metrics: dict = self._validate()
-                        metrics.update(val_metrics)
+                        
+                        if not self.config.trainer.get('skip_val', False):
+                            with _timer('testing', timing_raw):
+                                val_metrics: dict = self._validate()
+                            metrics.update(val_metrics)
 
                         # FIXED: Add error handling for saving rollout dataset
                         try:
@@ -290,7 +292,7 @@ class RayDAPOTrainer(RayPPOTrainer):
                 if self.global_steps >= self.total_training_steps or \
                     (self.token_budget is not None and self.global_total_tokens >= self.token_budget):
                     # perform validation after training
-                    if self.val_reward_fn is not None:
+                    if self.val_reward_fn is not None and not self.config.trainer.get('skip_val', False):
                         val_metrics = self._validate()
                         pprint(f'Final validation metrics: {val_metrics}')
                         logger.log(data=val_metrics, step=self.global_steps)

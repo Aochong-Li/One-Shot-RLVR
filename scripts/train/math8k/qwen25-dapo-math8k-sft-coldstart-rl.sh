@@ -1,16 +1,16 @@
 #!/bin/bash
 set -x
 
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
 export BASE_MODEL="aochongoliverli/Qwen2.5-3B-Zero-Base-math8k-coldstart-5epochs-5e-5lr-step100"
 
-N_GPUS=2
+N_GPUS=4
 ROLLOUT_N=8
 EXPECTED_MAX_LENGTH=8192
 TENSOR_MODEL_PARALLEL_SIZE=1
-TOTAL_EPOCHS=10
+TOTAL_EPOCHS=20
 SAVE_STEPS=20
 EVAL_STEPS=10
 
@@ -63,7 +63,8 @@ python3 -m verl.trainer.main_dapo \
  trainer.experiment_name=$EXPERIMENT_NAME \
  trainer.checkpoints_dir=$CHECKPOINTS_DIR \
  trainer.resume_mode='auto' \
- +trainer.val_before_train=True \
+ +trainer.val_before_train=False \
+ +trainer.skip_val=True \
  trainer.n_gpus_per_node=$N_GPUS \
  trainer.nnodes=1 \
  trainer.save_freq=$SAVE_STEPS \
