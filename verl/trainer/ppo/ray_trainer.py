@@ -1256,6 +1256,21 @@ class RayPPOTrainer(object):
             # Initialize empty if loading failed
             self.rollout_dataset = {}
     
+    
+    def load_global_total_tokens(self):
+        try:
+            if self.config.trainer.wandb_run_id is not None:
+                import wandb
+                wandb.login()
+                api = wandb.Api()
+                run = api.run(f"{self.config.trainer.project_name}/{self.config.trainer.wandb_run_id}")
+                history = run.history()
+                self.last_step = history[history["_step"] <= self.global_steps].iloc[-1]
+                self.global_total_tokens = int(self.last_step['token_budget/total_token_budget'])
+        except Exception as e:
+            print(f"Error updating global_total_tokens: {e}")
+            self.global_total_tokens = 0
+
     def update_rollout_dataset(self, batch, reward_tensor, score_record):
         """
         Update the reasoning dataset with the new reasoning traces.

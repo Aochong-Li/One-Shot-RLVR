@@ -37,6 +37,7 @@ actor_rollout_ref:
     ppo_epochs: 1
     shuffle: False
     ulysses_sequence_parallel_size: 1 # sp size
+    save_full_state_dict: True
     optim:
       lr: 1e-6
       lr_warmup_steps_ratio: 0.  # the total steps will be injected during runtime

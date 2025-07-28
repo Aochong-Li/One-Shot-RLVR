@@ -1,5 +1,6 @@
 #!/bin/bash
 set -x
+# test mode: change EXPERIMENT NAME, SAVE_STEP, WANDB LOG
 
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 export VLLM_ATTENTION_BACKEND=XFORMERS
@@ -21,7 +22,7 @@ MAX_LENGTH=$((EXPECTED_MAX_LENGTH + OVERLONG_BUFFER_LEN))
 
 EXPERIMENT_NAME="Qwen2.5-3B-math8k-coldstart-100steps-dapo-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-len"
 
-python3 -m verl.trainer.main_dapo_ray \
+python3 -m verl.trainer.main_dapo \
  algorithm.adv_estimator=dapo \
  data.train_files=./data/train/math8k/coldstart_rl_train.parquet \
  data.val_files=./data/train/math8k/test.parquet \
@@ -41,15 +42,15 @@ python3 -m verl.trainer.main_dapo_ray \
  actor_rollout_ref.actor.entropy_coeff=0.0 \
  actor_rollout_ref.actor.kl_loss_type=low_var_kl \
  actor_rollout_ref.model.enable_gradient_checkpointing=True \
- actor_rollout_ref.actor.fsdp_config.param_offload=False \
- +actor_rollout_ref.actor.fsdp_config.grad_offload=False \
- actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
+ actor_rollout_ref.actor.fsdp_config.param_offload=True \
+ +actor_rollout_ref.actor.fsdp_config.grad_offload=True \
+ actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
  actor_rollout_ref.rollout.tensor_model_parallel_size=$TENSOR_MODEL_PARALLEL_SIZE \
  actor_rollout_ref.rollout.name=vllm \
  actor_rollout_ref.rollout.temperature=1.0 \
  +actor_rollout_ref.rollout.val_temperature=0.6 \
  actor_rollout_ref.rollout.max_num_batched_tokens=32768 \
- actor_rollout_ref.rollout.gpu_memory_utilization=0.8 \
+ actor_rollout_ref.rollout.gpu_memory_utilization=0.85 \
  actor_rollout_ref.rollout.n=$ROLLOUT_N \
  +actor_rollout_ref.rollout.n_val=1 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
@@ -59,6 +60,7 @@ python3 -m verl.trainer.main_dapo_ray \
  reward_model.overlong_buffer.penalty_factor=$OVERLONG_BUFFER_PENALTY_FACTOR \
  trainer.critic_warmup=0 \
  trainer.logger=['console','wandb'] \
+ trainer.wandb_run_id='1c52z26b' \
  trainer.project_name='math8k'\
  trainer.username='aochongoliverli' \
  trainer.experiment_name=$EXPERIMENT_NAME \
@@ -73,3 +75,4 @@ python3 -m verl.trainer.main_dapo_ray \
  trainer.total_epochs=$TOTAL_EPOCHS \
  trainer.rejection_sample=True \
  trainer.push_to_hub=False 2>&1 | tee $CHECKPOINTS_DIR/$EXPERIMENT_NAME.log
+

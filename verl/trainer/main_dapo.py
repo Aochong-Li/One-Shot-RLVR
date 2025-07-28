@@ -122,6 +122,7 @@ def main_task(config, compute_score=None):
                             ray_worker_group_cls=ray_worker_group_cls,
                             reward_fn=reward_fn,
                             val_reward_fn=val_reward_fn)
+    
     trainer.init_workers()
     
     try:

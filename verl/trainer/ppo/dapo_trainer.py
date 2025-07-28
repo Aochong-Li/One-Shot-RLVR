@@ -96,12 +96,20 @@ class RayDAPOTrainer(RayPPOTrainer):
         # we start from step 1
         # HACK: Record total tokens
         self.global_steps += 1
-        self.global_total_tokens = 0
         self.token_budget = self.config.trainer.token_budget
         self.load_rollout_dataset()
+        self.load_global_total_tokens()
 
         total_training_steps = self.config.trainer.total_epochs * len(self.train_dataloader)
-        global_step_tqdm = tqdm(range(total_training_steps), desc="Global Training Steps", unit="step", total=total_training_steps, leave=True)
+        # If resuming, start tqdm at the correct position
+        global_step_tqdm = tqdm(
+            range(total_training_steps),
+            desc="Global Training Steps",
+            unit="step",
+            total=total_training_steps,
+            leave=True,
+            initial=self.global_steps
+        )
 
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
