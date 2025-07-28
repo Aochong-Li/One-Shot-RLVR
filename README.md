@@ -33,7 +33,8 @@ cd flash-attention
 git checkout v2.7.4.post1
 pip install -v --no-build-isolation .
 
-pip install -r requirement.txt
+pip uninstall verl
+pip install -r requirements.txt
 # This may cause pip package conflicts. It is safe to ignore it.
 pip install antlr4-python3-runtime==4.9.3
 pip install math-verify

@@ -7,12 +7,13 @@ export CHECKPOINTS_DIR="./outputs"
 export BASE_MODEL="aochongoliverli/Qwen2.5-3B-Zero-Base-math8k-coldstart-5epochs-5e-5lr-step100"
 
 N_GPUS=4
+N_NODES=1
 ROLLOUT_N=8
 EXPECTED_MAX_LENGTH=8192
 TENSOR_MODEL_PARALLEL_SIZE=1
 TOTAL_EPOCHS=20
 SAVE_STEPS=20
-EVAL_STEPS=10
+EVAL_STEPS=20
 
 OVERLONG_BUFFER_LEN=0
 OVERLONG_BUFFER_PENALTY_FACTOR=0.0
@@ -20,10 +21,10 @@ MAX_LENGTH=$((EXPECTED_MAX_LENGTH + OVERLONG_BUFFER_LEN))
 
 EXPERIMENT_NAME="Qwen2.5-3B-math8k-coldstart-100steps-dapo-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-len"
 
-python3 -m verl.trainer.main_dapo \
+python3 -m verl.trainer.main_dapo_ray \
  algorithm.adv_estimator=dapo \
- data.train_files=data/train/math8k/coldstart_rl_train.parquet \
- data.val_files=data/train/math8k/test.parquet \
+ data.train_files=./data/train/math8k/coldstart_rl_train.parquet \
+ data.val_files=./data/train/math8k/test.parquet \
  data.train_batch_size=128 \
  data.val_batch_size=800 \
  data.max_prompt_length=256 \
@@ -66,12 +67,9 @@ python3 -m verl.trainer.main_dapo \
  +trainer.val_before_train=False \
  +trainer.skip_val=True \
  trainer.n_gpus_per_node=$N_GPUS \
- trainer.nnodes=1 \
+ trainer.nnodes=$N_NODES \
  trainer.save_freq=$SAVE_STEPS \
  trainer.test_freq=$EVAL_STEPS \
  trainer.total_epochs=$TOTAL_EPOCHS \
  trainer.rejection_sample=True \
  trainer.push_to_hub=False 2>&1 | tee $CHECKPOINTS_DIR/$EXPERIMENT_NAME.log
-
- ## Push Saved Checkpoints to Huggingface
-#  python3 push_to_hf/experiments.py --project_name countdown --run_name $EXPERIMENT_NAME

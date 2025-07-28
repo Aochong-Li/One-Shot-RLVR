@@ -74,17 +74,6 @@ future==1.0.0
 gguf==0.10.0
 gitdb==4.0.12
 GitPython==3.1.44
-google-api-core==2.24.2
-google-auth==2.38.0
-google-cloud-aiplatform==1.71.1
-google-cloud-bigquery==3.31.0
-google-cloud-core==2.4.3
-google-cloud-resource-manager==1.14.2
-google-cloud-storage==2.19.0
-google-crc32c==1.7.1
-google-resumable-media==2.7.2
-googleapis-common-protos==1.70.0
-grpc-google-iam-v1==0.14.2
 grpcio==1.71.0
 h11==0.16.0
 hf-xet==1.1.0

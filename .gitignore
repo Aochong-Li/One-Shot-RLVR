@@ -129,3 +129,5 @@ outputs/
 sft/LLaMA-Factory/.deepspeed_env
 sft/LLaMA-Factory/outputs/
 
+./share/
+
