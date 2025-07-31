@@ -79,8 +79,8 @@ class RayDAPOTrainer(RayPPOTrainer):
         logger = Tracking(project_name=self.config.trainer.project_name,
                           experiment_name=self.config.trainer.experiment_name,
                           default_backend=self.config.trainer.logger,
-                          config=OmegaConf.to_container(self.config, resolve=True),
-                          wandb_run_id=self.config.trainer.wandb_run_id)
+                          config=OmegaConf.to_container(self.config, resolve=True)
+                          )
 
         self.global_steps = 0
         self._load_checkpoint()
@@ -108,7 +108,7 @@ class RayDAPOTrainer(RayPPOTrainer):
             unit="step",
             total=total_training_steps,
             leave=True,
-            initial=self.global_steps
+            initial=self.global_steps - 1 if self.global_steps > 0 else 0
         )
 
         for epoch in range(self.config.trainer.total_epochs):
