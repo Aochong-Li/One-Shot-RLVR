@@ -30,7 +30,7 @@ pip install ray vllm==0.6.3
 pip install -U ninja setuptools wheel packaging cmake
 git clone https://github.com/Dao-AILab/flash-attention.git
 cd flash-attention
-git checkout v2.7.4.post1
+git checkout  v2.8.1 # v2.7.4.post1
 pip install -v --no-build-isolation .
 
 pip uninstall verl

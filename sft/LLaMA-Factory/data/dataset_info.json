@@ -750,5 +750,103 @@
       "user_tag": "user",
       "assistant_tag": "assistant"
     }
+  },
+  "math8k-sft-QwQ-32B-16k-reasoning-traces": {
+    "hf_hub_url": "aochongoliverli/math8k-sft-QwQ-32B-16k-reasoning-traces",
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "math8k-sft-AM-Distill-Qwen-32B-16k-reasoning-traces": {
+    "hf_hub_url": "aochongoliverli/math8k-sft-AM-Distill-Qwen-32B-16k-reasoning-traces",
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "math8k-sft-Qwen3-32B-16k-reasoning-traces": {
+    "hf_hub_url": "aochongoliverli/math8k-sft-Qwen3-32B-16k-reasoning-traces",
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "math8k-sft-QwQ-32B-16k-reasoning-traces-limo600": {
+    "hf_hub_url": "aochongoliverli/math8k-sft-QwQ-32B-16k-reasoning-traces-limo600",
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "math8k-sft-QwQ-32B-16k-reasoning-traces-limo1000": {
+    "hf_hub_url": "aochongoliverli/math8k-sft-QwQ-32B-16k-reasoning-traces-limo1000-len-4096",
+    "split": "train",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "limo-16k-reasoning-traces": {
+    "hf_hub_url": "aochongoliverli/limo-math8k-distill-16k-reasoning-traces",
+    "split": "limo",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "limo-qwq-math8k-16k-reasoning-traces": {
+    "hf_hub_url": "aochongoliverli/limo-math8k-distill-16k-reasoning-traces",
+    "split": "math8kqwq",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
   }
 }

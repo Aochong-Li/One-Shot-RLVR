@@ -1081,7 +1081,7 @@ _register_template(
 )
 
 _register_template(
-    name="qwen25_deepmath",
+    name="qwen25_no_system_prompt",
     format_user=StringFormatter(slots=["<|im_start|>user\n{{content}}<|im_end|>\n"]),
     format_assistant=StringFormatter(slots=["<|im_start|>assistant\n{{content}}<|im_end|>\n"]),
     format_system=None,
