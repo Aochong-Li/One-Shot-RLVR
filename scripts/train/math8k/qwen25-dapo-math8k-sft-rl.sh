@@ -1,18 +1,16 @@
 #!/bin/bash
 set -x
-# test mode: change EXPERIMENT NAME, SAVE_STEP, WANDB LOG
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export VLLM_ATTENTION_BACKEND=XFORMERS
-export CHECKPOINTS_DIR="outputs"
-export BASE_MODEL="aochongoliverli/Qwen2.5-3B-Zero-Base-math8k-coldstart-5epochs-5e-5lr-step100"
+export CHECKPOINTS_DIR="./outputs"
+export BASE_MODEL="aochongoliverli/Qwen2.5-3B-math8k-distill-AM-Distill-Qwen-32B-16k-5epochs-2e-5lr-step400"
 
-N_GPUS=4
-N_NODES=1
+N_GPUS=8
 ROLLOUT_N=8
-EXPECTED_MAX_LENGTH=8192
+EXPECTED_MAX_LENGTH=16384
 TENSOR_MODEL_PARALLEL_SIZE=1
-TOTAL_EPOCHS=20
+TOTAL_EPOCHS=5
 SAVE_STEPS=10
 EVAL_STEPS=10
 
@@ -20,14 +18,14 @@ OVERLONG_BUFFER_LEN=0
 OVERLONG_BUFFER_PENALTY_FACTOR=0.0
 MAX_LENGTH=$((EXPECTED_MAX_LENGTH + OVERLONG_BUFFER_LEN))
 
-EXPERIMENT_NAME="Qwen2.5-3B-math8k-coldstart-100steps-dapo-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-len"
+EXPERIMENT_NAME="Qwen2.5-3B-math8k-AM-400steps-dapo-${TOTAL_EPOCHS}epochs-${ROLLOUT_N}rollouts-${MAX_LENGTH}max-len"
 
 python3 -m verl.trainer.main_dapo \
  algorithm.adv_estimator=dapo \
- data.train_files=./data/train/math8k/coldstart_rl_train.parquet \
- data.val_files=./data/train/math8k/test.parquet \
+ data.train_files=data/train/math8k/train.parquet \
+ data.val_files=data/train/math8k/test.parquet \
  data.train_batch_size=128 \
- data.val_batch_size=800 \
+ data.val_batch_size=1024 \
  data.max_prompt_length=256 \
  data.max_response_length=$MAX_LENGTH \
  reward_model.reward_manager='dapo' \
@@ -42,15 +40,15 @@ python3 -m verl.trainer.main_dapo \
  actor_rollout_ref.actor.entropy_coeff=0.0 \
  actor_rollout_ref.actor.kl_loss_type=low_var_kl \
  actor_rollout_ref.model.enable_gradient_checkpointing=True \
- actor_rollout_ref.actor.fsdp_config.param_offload=True \
- +actor_rollout_ref.actor.fsdp_config.grad_offload=True \
- actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
+ actor_rollout_ref.actor.fsdp_config.param_offload=False \
+ +actor_rollout_ref.actor.fsdp_config.grad_offload=False \
+ actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
  actor_rollout_ref.rollout.tensor_model_parallel_size=$TENSOR_MODEL_PARALLEL_SIZE \
  actor_rollout_ref.rollout.name=vllm \
  actor_rollout_ref.rollout.temperature=1.0 \
  +actor_rollout_ref.rollout.val_temperature=0.6 \
  actor_rollout_ref.rollout.max_num_batched_tokens=32768 \
- actor_rollout_ref.rollout.gpu_memory_utilization=0.85 \
+ actor_rollout_ref.rollout.gpu_memory_utilization=0.75 \
  actor_rollout_ref.rollout.n=$ROLLOUT_N \
  +actor_rollout_ref.rollout.n_val=1 \
  actor_rollout_ref.ref.fsdp_config.param_offload=True \
@@ -60,7 +58,6 @@ python3 -m verl.trainer.main_dapo \
  reward_model.overlong_buffer.penalty_factor=$OVERLONG_BUFFER_PENALTY_FACTOR \
  trainer.critic_warmup=0 \
  trainer.logger=['console','wandb'] \
- trainer.wandb_run_id='2f5rk4bh' \
  trainer.project_name='math8k'\
  trainer.username='aochongoliverli' \
  trainer.experiment_name=$EXPERIMENT_NAME \
@@ -69,10 +66,12 @@ python3 -m verl.trainer.main_dapo \
  +trainer.val_before_train=False \
  +trainer.skip_val=True \
  trainer.n_gpus_per_node=$N_GPUS \
- trainer.nnodes=$N_NODES \
+ trainer.nnodes=1 \
  trainer.save_freq=$SAVE_STEPS \
  trainer.test_freq=$EVAL_STEPS \
  trainer.total_epochs=$TOTAL_EPOCHS \
  trainer.rejection_sample=True \
  trainer.push_to_hub=False 2>&1 | tee $CHECKPOINTS_DIR/$EXPERIMENT_NAME.log
 
+ ## Push Saved Checkpoints to Huggingface
+#  python3 push_to_hf/experiments.py --project_name countdown --run_name $EXPERIMENT_NAME

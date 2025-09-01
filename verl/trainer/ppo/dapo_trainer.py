@@ -73,13 +73,15 @@ class RayDAPOTrainer(RayPPOTrainer):
         1. Clip Higher: enable clip_high and clip_low in the actor update
         2. Overlong Buffer: enable overlong buffer in RewardManager
         3. Token-level Policy Gradient Loss: enable token-level policy gradient loss in the actor update
+        4. We still keep normalization by std for advantages
         """
         from verl.utils.tracking import Tracking
         from omegaconf import OmegaConf
         logger = Tracking(project_name=self.config.trainer.project_name,
                           experiment_name=self.config.trainer.experiment_name,
                           default_backend=self.config.trainer.logger,
-                          config=OmegaConf.to_container(self.config, resolve=True)
+                          config=OmegaConf.to_container(self.config, resolve=True),
+                          wandb_run_id=self.config.trainer.get('wandb_run_id', None)
                           )
 
         self.global_steps = 0

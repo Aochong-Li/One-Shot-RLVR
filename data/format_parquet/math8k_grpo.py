@@ -88,10 +88,8 @@ if __name__ == '__main__':
     # RL on all data
     python data/format_parquet/math8k_grpo.py \
         --math500_dir ../perturb-r/data/math500 \
-        --dataset_name simplelr_qwen_level1to4 \
-        --dataset_short_name math8k_medium \
-        --push_to_hf
-
+        --sft_name_or_path aochongoliverli/math8k-sft-QwQ-32B-16k-reasoning-traces
+    
     # RL excluding coldstart data
     python data/format_parquet/math8k_grpo.py \
         --coldstart_name_or_path aochongoliverli/math8k-coldstart-QwQ-32B-reasoning-traces

@@ -9,8 +9,10 @@ api = wandb.Api()
 """
 NOTE: run id is not run name. To get run id
 
+ENTITY = "al2644-cornell-university"
+PROJECT = "math8k"
 for r in api.runs(f"{ENTITY}/{PROJECT}"):
-    pprint({"id": r.id, "name": r.name})
+    print({"id": r.id, "name": r.name})
 """
 
 ENTITY = "al2644-cornell-university"
