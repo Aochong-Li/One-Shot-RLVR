@@ -1267,6 +1267,8 @@ class RayPPOTrainer(object):
                 history = run.history()
                 self.last_step = history[history["_step"] <= self.global_steps].iloc[-1]
                 self.global_total_tokens = int(self.last_step['token_budget/total_token_budget'])
+            else:
+                self.global_total_tokens = 0
         except Exception as e:
             print(f"Error updating global_total_tokens: {e}")
             self.global_total_tokens = 0

@@ -1089,6 +1089,29 @@ _register_template(
     efficient_eos=True,
     replace_jinja_template=False,
 )
+
+_register_template(
+    name="qwen25_default",
+    format_user=StringFormatter(slots=["<|im_start|>user\n{{content}}<|im_end|>\n"]),
+    format_assistant=StringFormatter(slots=["<|im_start|>assistant\n{{content}}<|im_end|>\n"]),
+    format_system=StringFormatter(slots=["<|im_start|>system\n{{content}}<|im_end|>\n"]),
+    default_system="You are a helpful assistant.",
+    stop_words=["<|endoftext|>"],
+    replace_eos=True,
+    efficient_eos=True,
+    replace_jinja_template=False
+) 
+
+_register_template(
+    name="qwen25_think",
+    format_user=StringFormatter(slots=["<|im_start|>user\n{{content}}<|im_end|>\n"]),
+    format_assistant=StringFormatter(slots=["<|im_start|>assistant\n<think>\n{{content}}\n</think><|im_end|>\n"]),
+    format_system=None,
+    stop_words=["<|endoftext|>"],
+    efficient_eos=True,
+    replace_jinja_template=False,
+)
+
 # copied from chatml template
 _register_template(
     name="qwen2_vl",
@@ -1286,3 +1309,4 @@ _register_template(
     format_user=StringFormatter(slots=["<human>:{{content}}\n<bot>:"]),
     format_separator=EmptyFormatter(slots=["\n"]),
 )
+

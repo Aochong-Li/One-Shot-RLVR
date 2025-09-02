@@ -26,8 +26,13 @@ if __name__ == "__main__":
     python3 push_to_hf/experiments.py \
         --root_dir /share/goyal/lio/reasoning/model/sft \
         --project_name math8k \
+<<<<<<< HEAD
         --run_name Qwen2.5-3B-math8k-distill-QwQ-32B-16k-limo600-35epochs-2e-5lr \
         --steps 20 40 60 80 100 120 140 160 180
+=======
+        --run_name Qwen2.5-3B-math8k-QwQ-400steps-dapo-5epochs-8rollouts-16384max-len \
+        --steps 20 40 60 80 100 120
+>>>>>>> 5c0aa819dd0c504f179b13de5c275898dc6dac60
     """
     args = argparse.ArgumentParser()
     args.add_argument("--root_dir", type=str, required=True)

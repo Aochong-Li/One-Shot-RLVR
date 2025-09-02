@@ -37,4 +37,3 @@ ddp_timeout: 180000000
 
 report_to: wandb
 run_name: Qwen2.5-3B-math8k-distill-AM-Distill-Qwen-32B-16k-5epochs-2e-5lr
-
