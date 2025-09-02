@@ -27,9 +27,9 @@ if __name__ == "__main__":
     Example Usage:
     python3 push_to_hf/experiments.py \
         --root_dir /share/goyal/lio/reasoning/model/sft \
-        --project_name math8k \
-        --run_name Qwen2.5-3B-math8k-distill-QwQ-32B-16k-limo1000-10epochs-2e-5lr \
-        --steps 30 45 60 75 90 105 120
+        --project_name math8k_old \
+        --run_name Qwen2.5-3B-limo-qwq-16k-3epochs-5e-5lr \
+        --steps 250 350 400
     """
 
     args = argparse.ArgumentParser()
