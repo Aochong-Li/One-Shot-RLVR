@@ -1,10 +1,10 @@
 #!/bin/bash
 set -x
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export CHECKPOINTS_DIR="./outputs"
-export BASE_MODEL="aochongoliverli/Qwen2.5-3B-math8k-distill-AM-Distill-Qwen-32B-16k-5epochs-2e-5lr-step400"
+export BASE_MODEL="aochongoliverli/Qwen2.5-1.5B-math8k-distill-AM-Distill-Qwen-32B-16k-5epochs-2e-5lr-step400"
 
 N_GPUS=8
 ROLLOUT_N=8

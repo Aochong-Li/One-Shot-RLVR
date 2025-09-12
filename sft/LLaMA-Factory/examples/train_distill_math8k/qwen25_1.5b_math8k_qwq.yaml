@@ -29,7 +29,7 @@ gradient_accumulation_steps: 32
 learning_rate: 2.0e-5
 num_train_epochs: 5
 lr_scheduler_type: cosine
-warmup_ratio: 0.1
+warmup_ratio: 0.10
 max_grad_norm: 1.0
 weight_decay: 0.01
 bf16: true
